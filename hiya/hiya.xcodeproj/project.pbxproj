@@ -12,16 +12,33 @@
 		DCBF342A2FBFF10B00FB6954 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF34292FBFF10B00FB6954 /* PostgREST */; };
 		DCBF342C2FBFF10B00FB6954 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF342B2FBFF10B00FB6954 /* Realtime */; };
 		DCBF342E2FBFF10B00FB6954 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF342D2FBFF10B00FB6954 /* Storage */; };
+		DCBF344D2FBFF46100FB6954 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF344C2FBFF46100FB6954 /* Supabase */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DCBF34372FBFF31900FB6954 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DCBF340E2FBFEE9300FB6954 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DCBF34152FBFEE9300FB6954;
+			remoteInfo = hiya;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		DCBF34162FBFEE9300FB6954 /* hiya.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hiya.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DCBF34332FBFF31900FB6954 /* hiyaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hiyaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DCBF34182FBFEE9300FB6954 /* hiya */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = hiya;
+			sourceTree = "<group>";
+		};
+		DCBF34342FBFF31900FB6954 /* hiyaTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = hiyaTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,9 +50,17 @@
 			files = (
 				DCBF342A2FBFF10B00FB6954 /* PostgREST in Frameworks */,
 				DCBF34282FBFF10B00FB6954 /* Functions in Frameworks */,
+				DCBF344D2FBFF46100FB6954 /* Supabase in Frameworks */,
 				DCBF34262FBFF10B00FB6954 /* Auth in Frameworks */,
 				DCBF342E2FBFF10B00FB6954 /* Storage in Frameworks */,
 				DCBF342C2FBFF10B00FB6954 /* Realtime in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCBF34302FBFF31900FB6954 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -46,6 +71,8 @@
 			isa = PBXGroup;
 			children = (
 				DCBF34182FBFEE9300FB6954 /* hiya */,
+				DCBF34342FBFF31900FB6954 /* hiyaTests */,
+				DCBF344B2FBFF46100FB6954 /* Frameworks */,
 				DCBF34172FBFEE9300FB6954 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,8 +81,16 @@
 			isa = PBXGroup;
 			children = (
 				DCBF34162FBFEE9300FB6954 /* hiya.app */,
+				DCBF34332FBFF31900FB6954 /* hiyaTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		DCBF344B2FBFF46100FB6954 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -83,10 +118,34 @@
 				DCBF34292FBFF10B00FB6954 /* PostgREST */,
 				DCBF342B2FBFF10B00FB6954 /* Realtime */,
 				DCBF342D2FBFF10B00FB6954 /* Storage */,
+				DCBF344C2FBFF46100FB6954 /* Supabase */,
 			);
 			productName = hiya;
 			productReference = DCBF34162FBFEE9300FB6954 /* hiya.app */;
 			productType = "com.apple.product-type.application";
+		};
+		DCBF34322FBFF31900FB6954 /* hiyaTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DCBF34392FBFF31900FB6954 /* Build configuration list for PBXNativeTarget "hiyaTests" */;
+			buildPhases = (
+				DCBF342F2FBFF31900FB6954 /* Sources */,
+				DCBF34302FBFF31900FB6954 /* Frameworks */,
+				DCBF34312FBFF31900FB6954 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DCBF34382FBFF31900FB6954 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DCBF34342FBFF31900FB6954 /* hiyaTests */,
+			);
+			name = hiyaTests;
+			packageProductDependencies = (
+			);
+			productName = hiyaTests;
+			productReference = DCBF34332FBFF31900FB6954 /* hiyaTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -100,6 +159,10 @@
 				TargetAttributes = {
 					DCBF34152FBFEE9300FB6954 = {
 						CreatedOnToolsVersion = 26.1.1;
+					};
+					DCBF34322FBFF31900FB6954 = {
+						CreatedOnToolsVersion = 26.1.1;
+						TestTargetID = DCBF34152FBFEE9300FB6954;
 					};
 				};
 			};
@@ -121,12 +184,20 @@
 			projectRoot = "";
 			targets = (
 				DCBF34152FBFEE9300FB6954 /* hiya */,
+				DCBF34322FBFF31900FB6954 /* hiyaTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		DCBF34142FBFEE9300FB6954 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCBF34312FBFF31900FB6954 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -143,7 +214,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DCBF342F2FBFF31900FB6954 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DCBF34382FBFF31900FB6954 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DCBF34152FBFEE9300FB6954 /* hiya */;
+			targetProxy = DCBF34372FBFF31900FB6954 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		DCBF341F2FBFEE9500FB6954 /* Debug */ = {
@@ -282,6 +368,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -314,6 +401,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -328,6 +416,48 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		DCBF343A2FBFF31900FB6954 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LBJ38R6L4W;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.williamjin.hiyaTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hiya.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hiya";
+			};
+			name = Debug;
+		};
+		DCBF343B2FBFF31900FB6954 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LBJ38R6L4W;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.williamjin.hiyaTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hiya.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hiya";
 			};
 			name = Release;
 		};
@@ -348,6 +478,15 @@
 			buildConfigurations = (
 				DCBF34222FBFEE9500FB6954 /* Debug */,
 				DCBF34232FBFEE9500FB6954 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DCBF34392FBFF31900FB6954 /* Build configuration list for PBXNativeTarget "hiyaTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCBF343A2FBFF31900FB6954 /* Debug */,
+				DCBF343B2FBFF31900FB6954 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -390,6 +529,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = DCBF34242FBFF10B00FB6954 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Storage;
+		};
+		DCBF344C2FBFF46100FB6954 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DCBF34242FBFF10B00FB6954 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

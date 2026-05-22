@@ -67,3 +67,6 @@ supabase/.branches/
 .env
 .env.local
 .env.*.local
+
+# Superpowers brainstorming companion
+.superpowers/
