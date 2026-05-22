@@ -30,9 +30,22 @@
 		DCBF34332FBFF31900FB6954 /* hiyaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hiyaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		DCBF348C2FC0CBA400FB6954 /* Exceptions for "hiya" folder in "hiya" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DCBF34152FBFEE9300FB6954 /* hiya */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DCBF34182FBFEE9300FB6954 /* hiya */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DCBF348C2FC0CBA400FB6954 /* Exceptions for "hiya" folder in "hiya" target */,
+			);
 			path = hiya;
 			sourceTree = "<group>";
 		};
@@ -363,6 +376,7 @@
 				DEVELOPMENT_TEAM = LBJ38R6L4W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = hiya/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -396,6 +410,7 @@
 				DEVELOPMENT_TEAM = LBJ38R6L4W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = hiya/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

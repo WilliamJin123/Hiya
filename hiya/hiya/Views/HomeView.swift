@@ -12,14 +12,26 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 32) {
-                progressRing
-                logButton
-                todaysLogSection
-                Spacer()
+            ZStack {
+                Theme.bgGradient.ignoresSafeArea()
+
+                VStack(spacing: Theme.Spacing.xl) {
+                    ProgressRingView(state: vm.ringState)
+                        .padding(.top, Theme.Spacing.lg)
+                    logButton
+                    todaysLogSection
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, Theme.Spacing.md)
             }
-            .padding()
-            .navigationTitle("Hiya")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Hiya")
+                        .font(Theme.FontScale.title())
+                        .foregroundColor(Theme.textPrimary)
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .task { await vm.refresh() }
             .refreshable { await vm.refresh() }
             .sheet(isPresented: $showingLogSheet, onDismiss: { Task { await vm.refresh() } }) {
@@ -36,62 +48,43 @@ struct HomeView: View {
         }
     }
 
-    private var progressRing: some View {
-        ZStack {
-            Circle()
-                .stroke(.secondary.opacity(0.15), lineWidth: 18)
-            Circle()
-                .trim(from: 0, to: vm.progress)
-                .stroke(
-                    vm.isGoalMet ? AnyShapeStyle(Color.green) : AnyShapeStyle(Color.accentColor),
-                    style: StrokeStyle(lineWidth: 18, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.4), value: vm.progress)
-            VStack(spacing: 4) {
-                Text("\(vm.count)")
-                    .font(.system(size: 72, weight: .bold, design: .rounded))
-                    .contentTransition(.numericText())
-                Text("of \(vm.goal)")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(width: 240, height: 240)
-        .padding(.top, 24)
-    }
-
     private var logButton: some View {
         Button {
             showingLogSheet = true
         } label: {
-            Label("Log a person", systemImage: "plus.circle.fill")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "plus.circle.fill")
+                Text("Log a person").font(Theme.FontScale.body())
+            }
+            .foregroundColor(Theme.textOnAccent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Theme.accentLavender)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            .shadow(color: Theme.accentLavender.opacity(0.3), radius: 14, x: 0, y: 8)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(.accentColor)
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
     private var todaysLogSection: some View {
         if vm.todaysLog.isEmpty {
-            VStack(spacing: 8) {
-                Text("No conversations yet today")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 16)
+            Text("No conversations yet today")
+                .font(Theme.FontScale.secondary())
+                .foregroundColor(Theme.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, Theme.Spacing.md)
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Today")
-                    .font(.headline)
-                    .padding(.bottom, 8)
+                Text("TODAY")
+                    .font(Theme.FontScale.bodyHeading())
+                    .tracking(1.2)
+                    .foregroundColor(Theme.textSecondary)
+                    .padding(.bottom, Theme.Spacing.sm)
                 ForEach(vm.todaysLog) { entry in
                     LogRow(entry: entry)
                     if entry.id != vm.todaysLog.last?.id {
-                        Divider()
+                        Theme.divider.frame(height: 1)
                     }
                 }
             }
@@ -103,33 +96,41 @@ private struct LogRow: View {
     let entry: LoggedConversation
 
     var body: some View {
-        HStack(spacing: 12) {
-            valenceIndicator
+        HStack(spacing: Theme.Spacing.md) {
+            Circle()
+                .fill(valenceColor)
+                .frame(width: 9, height: 9)
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.personName).font(.body)
+                Text(entry.personName)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
                 if let note = entry.note, !note.isEmpty {
-                    Text(note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(note)
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .lineLimit(1)
                 }
             }
             Spacer()
             Text(entry.occurredAt, style: .time)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(Theme.FontScale.micro())
+                .tracking(0.8)
+                .foregroundColor(Theme.textSecondary)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
     }
 
-    private var valenceIndicator: some View {
-        let color: Color = switch entry.valence {
-            case .positive: .green
-            case .neutral: .yellow
-            case .negative: .red
-            case .none: .gray.opacity(0.4)
+    private var valenceColor: Color {
+        switch entry.valence {
+        case .positive: Theme.valencePositive
+        case .neutral:  Theme.valenceNeutral
+        case .negative: Theme.valenceNegative
+        case .none:     Theme.valenceNone
         }
-        return Circle().fill(color).frame(width: 10, height: 10)
     }
 }
 
 #Preview {
     HomeView(repo: MockHiyaRepository())
+        .preferredColorScheme(.dark)
 }

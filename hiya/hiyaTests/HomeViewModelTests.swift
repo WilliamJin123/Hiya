@@ -77,4 +77,62 @@ struct HomeViewModelTests {
 
         #expect(abs(vm.progress - 1.0) < 0.001)
     }
+
+    @Test func ringState_isInProgress_whenBelowGoal() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        for _ in 0..<3 {
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+        }
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        if case let .inProgress(count, goal, progress) = vm.ringState {
+            #expect(count == 3)
+            #expect(goal == 10)
+            #expect(abs(progress - 0.3) < 0.001)
+        } else {
+            Issue.record("expected .inProgress, got \(vm.ringState)")
+        }
+    }
+
+    @Test func ringState_isAtGoal_whenExactlyGoal() async throws {
+        let repo = MockHiyaRepository(profile: Profile(
+            id: UUID(), displayName: nil, dailyGoal: 5,
+            streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
+        ))
+        let alex = try await repo.createPerson(name: "Alex")
+        for _ in 0..<5 {
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+        }
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        if case let .atGoal(goal) = vm.ringState {
+            #expect(goal == 5)
+        } else {
+            Issue.record("expected .atGoal, got \(vm.ringState)")
+        }
+    }
+
+    @Test func ringState_isOverload_withCorrectExtra_whenAboveGoal() async throws {
+        let repo = MockHiyaRepository(profile: Profile(
+            id: UUID(), displayName: nil, dailyGoal: 3,
+            streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
+        ))
+        let alex = try await repo.createPerson(name: "Alex")
+        for _ in 0..<5 {
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+        }
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        if case let .overload(count, goal, extra) = vm.ringState {
+            #expect(count == 5)
+            #expect(goal == 3)
+            #expect(extra == 2)
+        } else {
+            Issue.record("expected .overload, got \(vm.ringState)")
+        }
+    }
 }
