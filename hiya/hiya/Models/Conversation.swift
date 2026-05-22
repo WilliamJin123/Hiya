@@ -7,6 +7,7 @@ struct Conversation: Codable, Sendable, Identifiable, Equatable {
     var occurredAt: Date
     var valence: Valence?
     var note: String?
+    var improvementNote: String? = nil
     let createdAt: Date
 
     enum Valence: String, Codable, Sendable, Equatable, CaseIterable {
@@ -20,6 +21,7 @@ struct Conversation: Codable, Sendable, Identifiable, Equatable {
         case occurredAt = "occurred_at"
         case valence
         case note
+        case improvementNote = "improvement_note"
         case createdAt = "created_at"
     }
 }

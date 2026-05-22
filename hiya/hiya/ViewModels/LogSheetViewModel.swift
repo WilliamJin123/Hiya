@@ -73,7 +73,8 @@ final class LogSheetViewModel {
             try await repo.logConversation(
                 personId: personId,
                 valence: valence,
-                note: trimmedNote.isEmpty ? nil : trimmedNote
+                note: trimmedNote.isEmpty ? nil : trimmedNote,
+                improvementNote: nil
             )
             return true
         } catch {

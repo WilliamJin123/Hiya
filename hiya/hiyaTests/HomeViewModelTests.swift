@@ -8,8 +8,8 @@ struct HomeViewModelTests {
     @Test func refreshLoadsCountAndLog() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
-        try await repo.logConversation(personId: alex.id, valence: .positive, note: nil)
-        try await repo.logConversation(personId: alex.id, valence: nil, note: "good chat")
+        try await repo.logConversation(personId: alex.id, valence: .positive, note: nil, improvementNote: nil)
+        try await repo.logConversation(personId: alex.id, valence: nil, note: "good chat", improvementNote: nil)
 
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
@@ -33,7 +33,7 @@ struct HomeViewModelTests {
             note: nil,
             createdAt: yesterday
         ))
-        try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
 
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
@@ -55,7 +55,7 @@ struct HomeViewModelTests {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
         for _ in 0..<3 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
         }
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
@@ -70,7 +70,7 @@ struct HomeViewModelTests {
         ))
         let alex = try await repo.createPerson(name: "Alex")
         for _ in 0..<5 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
         }
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
@@ -82,7 +82,7 @@ struct HomeViewModelTests {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
         for _ in 0..<3 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
         }
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
@@ -103,7 +103,7 @@ struct HomeViewModelTests {
         ))
         let alex = try await repo.createPerson(name: "Alex")
         for _ in 0..<5 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
         }
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
@@ -122,7 +122,7 @@ struct HomeViewModelTests {
         ))
         let alex = try await repo.createPerson(name: "Alex")
         for _ in 0..<5 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil)
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
         }
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
