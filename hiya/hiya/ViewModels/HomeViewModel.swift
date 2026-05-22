@@ -17,6 +17,16 @@ final class HomeViewModel {
         return min(1.0, Double(count) / Double(goal))
     }
     var isGoalMet: Bool { count >= goal }
+    var ringState: RingState {
+        if count < goal {
+            let p = goal > 0 ? Double(count) / Double(goal) : 0
+            return .inProgress(count: count, goal: goal, progress: p)
+        } else if count == goal {
+            return .atGoal(goal: goal)
+        } else {
+            return .overload(count: count, goal: goal, extra: count - goal)
+        }
+    }
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -45,4 +55,10 @@ final class HomeViewModel {
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? now
         return (start, end)
     }
+}
+
+enum RingState: Equatable, Sendable {
+    case inProgress(count: Int, goal: Int, progress: Double)
+    case atGoal(goal: Int)
+    case overload(count: Int, goal: Int, extra: Int)
 }
