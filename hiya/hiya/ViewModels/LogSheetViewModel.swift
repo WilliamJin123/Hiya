@@ -11,9 +11,12 @@ final class LogSheetViewModel {
     private(set) var selectedPerson: Person?
     var valence: Conversation.Valence?
     var note: String = ""
+    var improvementNote: String = ""
+    private(set) var editing: LoggedConversation?
 
     private(set) var isLoading: Bool = false
     private(set) var isSaving: Bool = false
+    private(set) var isDeleting: Bool = false
     var errorMessage: String?
 
     var trimmedSearch: String {
@@ -27,12 +30,20 @@ final class LogSheetViewModel {
     }
 
     var canSave: Bool {
+        if editing != nil { return true }
         if selectedPerson != nil { return true }
         return !trimmedSearch.isEmpty
     }
 
-    init(repo: HiyaRepository) {
+    init(repo: HiyaRepository, editing: LoggedConversation? = nil) {
         self.repo = repo
+        self.editing = editing
+        if let editing {
+            searchText = editing.personName
+            valence = editing.valence
+            note = editing.note ?? ""
+            improvementNote = editing.improvementNote ?? ""
+        }
     }
 
     func load() async {
@@ -62,19 +73,48 @@ final class LogSheetViewModel {
         errorMessage = nil
         defer { isSaving = false }
         do {
-            let personId: UUID
-            if let selected = selectedPerson {
-                personId = selected.id
-            } else {
-                let new = try await repo.createPerson(name: trimmedSearch)
-                personId = new.id
-            }
             let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-            try await repo.logConversation(
-                personId: personId,
-                valence: valence,
-                note: trimmedNote.isEmpty ? nil : trimmedNote
-            )
+            let trimmedImprovement = improvementNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            let noteToSend = trimmedNote.isEmpty ? nil : trimmedNote
+            let improvementToSend = trimmedImprovement.isEmpty ? nil : trimmedImprovement
+
+            if let editing {
+                try await repo.updateConversation(
+                    id: editing.id,
+                    valence: valence,
+                    note: noteToSend,
+                    improvementNote: improvementToSend
+                )
+            } else {
+                let personId: UUID
+                if let selected = selectedPerson {
+                    personId = selected.id
+                } else {
+                    let new = try await repo.createPerson(name: trimmedSearch)
+                    personId = new.id
+                }
+                try await repo.logConversation(
+                    personId: personId,
+                    valence: valence,
+                    note: noteToSend,
+                    improvementNote: improvementToSend
+                )
+            }
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Returns true if delete succeeded. Only valid when editing.
+    func delete() async -> Bool {
+        guard let editing else { return false }
+        isDeleting = true
+        errorMessage = nil
+        defer { isDeleting = false }
+        do {
+            try await repo.deleteConversation(id: editing.id)
             return true
         } catch {
             errorMessage = error.localizedDescription

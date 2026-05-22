@@ -3,7 +3,7 @@ import SwiftUI
 struct HomeView: View {
     let repo: HiyaRepository
     @State private var vm: HomeViewModel
-    @State private var showingLogSheet = false
+    @State private var sheetMode: LogSheetMode?
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -34,8 +34,13 @@ struct HomeView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .task { await vm.refresh() }
             .refreshable { await vm.refresh() }
-            .sheet(isPresented: $showingLogSheet, onDismiss: { Task { await vm.refresh() } }) {
-                LogSheetView(repo: repo)
+            .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh() } }) { mode in
+                switch mode {
+                case .create:
+                    LogSheetView(repo: repo)
+                case .edit(let entry):
+                    LogSheetView(repo: repo, editing: entry)
+                }
             }
             .alert("Something went wrong", isPresented: Binding(
                 get: { vm.errorMessage != nil },
@@ -50,7 +55,7 @@ struct HomeView: View {
 
     private var logButton: some View {
         Button {
-            showingLogSheet = true
+            sheetMode = .create
         } label: {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "plus.circle.fill")
@@ -82,7 +87,7 @@ struct HomeView: View {
                     .foregroundColor(Theme.textSecondary)
                     .padding(.bottom, Theme.Spacing.sm)
                 ForEach(vm.todaysLog) { entry in
-                    LogRow(entry: entry)
+                    LogRow(entry: entry, onTap: { sheetMode = .edit(entry) })
                     if entry.id != vm.todaysLog.last?.id {
                         Theme.divider.frame(height: 1)
                     }
@@ -92,32 +97,49 @@ struct HomeView: View {
     }
 }
 
+enum LogSheetMode: Identifiable {
+    case create
+    case edit(LoggedConversation)
+
+    var id: String {
+        switch self {
+        case .create: "create"
+        case .edit(let c): "edit-\(c.id.uuidString)"
+        }
+    }
+}
+
 private struct LogRow: View {
     let entry: LoggedConversation
+    let onTap: () -> Void
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            Circle()
-                .fill(valenceColor)
-                .frame(width: 9, height: 9)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.personName)
-                    .font(Theme.FontScale.body())
-                    .foregroundColor(Theme.textPrimary)
-                if let note = entry.note, !note.isEmpty {
-                    Text(note)
-                        .font(Theme.FontScale.secondary())
-                        .foregroundColor(Theme.textSecondary)
-                        .lineLimit(1)
+        Button(action: onTap) {
+            HStack(spacing: Theme.Spacing.md) {
+                Circle()
+                    .fill(valenceColor)
+                    .frame(width: 9, height: 9)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.personName)
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    if let note = entry.note, !note.isEmpty {
+                        Text(note)
+                            .font(Theme.FontScale.secondary())
+                            .foregroundColor(Theme.textSecondary)
+                            .lineLimit(1)
+                    }
                 }
+                Spacer()
+                Text(entry.occurredAt, style: .time)
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.8)
+                    .foregroundColor(Theme.textSecondary)
             }
-            Spacer()
-            Text(entry.occurredAt, style: .time)
-                .font(Theme.FontScale.micro())
-                .tracking(0.8)
-                .foregroundColor(Theme.textSecondary)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 10)
+        .buttonStyle(.plain)
     }
 
     private var valenceColor: Color {

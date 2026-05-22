@@ -6,7 +6,6 @@ final class MockHiyaRepository: HiyaRepository {
     var people: [Person]
     var conversations: [Conversation]
 
-    /// Set to a non-nil error to make the next call throw.
     var errorToThrow: Error?
 
     init(
@@ -56,15 +55,22 @@ final class MockHiyaRepository: HiyaRepository {
                 let name = people.first(where: { $0.id == conv.personId })?.name ?? "Unknown"
                 return LoggedConversation(
                     id: conv.id,
+                    personId: conv.personId,
                     personName: name,
                     occurredAt: conv.occurredAt,
                     valence: conv.valence,
-                    note: conv.note
+                    note: conv.note,
+                    improvementNote: conv.improvementNote
                 )
             }
     }
 
-    func logConversation(personId: UUID, valence: Conversation.Valence?, note: String?) async throws {
+    func logConversation(
+        personId: UUID,
+        valence: Conversation.Valence?,
+        note: String?,
+        improvementNote: String?
+    ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         let conv = Conversation(
             id: UUID(),
@@ -73,12 +79,31 @@ final class MockHiyaRepository: HiyaRepository {
             occurredAt: .now,
             valence: valence,
             note: note,
+            improvementNote: improvementNote,
             createdAt: .now
         )
         conversations.append(conv)
         if let idx = people.firstIndex(where: { $0.id == personId }) {
             people[idx].lastLoggedAt = conv.occurredAt
         }
+    }
+
+    func updateConversation(
+        id: UUID,
+        valence: Conversation.Valence?,
+        note: String?,
+        improvementNote: String?
+    ) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].valence = valence
+        conversations[idx].note = note
+        conversations[idx].improvementNote = improvementNote
+    }
+
+    func deleteConversation(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        conversations.removeAll { $0.id == id }
     }
 }
 

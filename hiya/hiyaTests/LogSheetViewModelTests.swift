@@ -119,4 +119,117 @@ struct LogSheetViewModelTests {
         #expect(success == false)
         #expect(vm.errorMessage != nil)
     }
+
+    @Test func init_withEditing_prefillsFields() async {
+        let logged = LoggedConversation(
+            id: UUID(),
+            personId: UUID(),
+            personName: "Alex",
+            occurredAt: .now,
+            valence: .positive,
+            note: "lunch",
+            improvementNote: "rushed"
+        )
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, editing: logged)
+
+        #expect(vm.searchText == "Alex")
+        #expect(vm.valence == .positive)
+        #expect(vm.note == "lunch")
+        #expect(vm.improvementNote == "rushed")
+        #expect(vm.editing != nil)
+    }
+
+    @Test func canSave_isTrueWhenEditing_evenWithoutChanges() async {
+        let logged = LoggedConversation(
+            id: UUID(), personId: UUID(), personName: "Alex",
+            occurredAt: .now, valence: nil, note: nil, improvementNote: nil
+        )
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, editing: logged)
+        #expect(vm.canSave == true)
+    }
+
+    @Test func save_inEditMode_callsUpdateConversationNotInsert() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        try await repo.logConversation(personId: alex.id, valence: .neutral, note: "first", improvementNote: nil)
+        let original = repo.conversations[0]
+        let logged = LoggedConversation(
+            id: original.id, personId: alex.id, personName: "Alex",
+            occurredAt: original.occurredAt, valence: .neutral, note: "first", improvementNote: nil
+        )
+        let vm = LogSheetViewModel(repo: repo, editing: logged)
+        vm.note = "updated"
+
+        let success = await vm.save()
+
+        #expect(success)
+        #expect(repo.conversations.count == 1)
+        #expect(repo.conversations[0].note == "updated")
+    }
+
+    @Test func save_inCreateMode_passesImprovementNote() async {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo)
+        vm.searchText = "Bea"
+        vm.improvementNote = "be earlier"
+
+        _ = await vm.save()
+
+        #expect(repo.conversations.count == 1)
+        #expect(repo.conversations[0].improvementNote == "be earlier")
+    }
+
+    @Test func save_inEditMode_persistsImprovementNote() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        let original = repo.conversations[0]
+        let logged = LoggedConversation(
+            id: original.id, personId: alex.id, personName: "Alex",
+            occurredAt: original.occurredAt, valence: nil, note: nil, improvementNote: nil
+        )
+        let vm = LogSheetViewModel(repo: repo, editing: logged)
+        vm.improvementNote = "more present"
+
+        _ = await vm.save()
+
+        #expect(repo.conversations[0].improvementNote == "more present")
+    }
+
+    @Test func delete_returnsTrue_andRemovesConversation() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        let original = repo.conversations[0]
+        let logged = LoggedConversation(
+            id: original.id, personId: alex.id, personName: "Alex",
+            occurredAt: original.occurredAt, valence: nil, note: nil, improvementNote: nil
+        )
+        let vm = LogSheetViewModel(repo: repo, editing: logged)
+
+        let success = await vm.delete()
+
+        #expect(success)
+        #expect(repo.conversations.isEmpty)
+    }
+
+    @Test func delete_setsErrorOnFailure_returnsFalse() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        let original = repo.conversations[0]
+        let logged = LoggedConversation(
+            id: original.id, personId: alex.id, personName: "Alex",
+            occurredAt: original.occurredAt, valence: nil, note: nil, improvementNote: nil
+        )
+        let vm = LogSheetViewModel(repo: repo, editing: logged)
+        repo.errorToThrow = NSError(domain: "test", code: 1)
+
+        let success = await vm.delete()
+
+        #expect(success == false)
+        #expect(vm.errorMessage != nil)
+    }
 }
