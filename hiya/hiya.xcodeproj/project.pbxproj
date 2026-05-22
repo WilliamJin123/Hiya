@@ -12,6 +12,7 @@
 		DCBF342A2FBFF10B00FB6954 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF34292FBFF10B00FB6954 /* PostgREST */; };
 		DCBF342C2FBFF10B00FB6954 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF342B2FBFF10B00FB6954 /* Realtime */; };
 		DCBF342E2FBFF10B00FB6954 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF342D2FBFF10B00FB6954 /* Storage */; };
+		DCBF344D2FBFF46100FB6954 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = DCBF344C2FBFF46100FB6954 /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +50,7 @@
 			files = (
 				DCBF342A2FBFF10B00FB6954 /* PostgREST in Frameworks */,
 				DCBF34282FBFF10B00FB6954 /* Functions in Frameworks */,
+				DCBF344D2FBFF46100FB6954 /* Supabase in Frameworks */,
 				DCBF34262FBFF10B00FB6954 /* Auth in Frameworks */,
 				DCBF342E2FBFF10B00FB6954 /* Storage in Frameworks */,
 				DCBF342C2FBFF10B00FB6954 /* Realtime in Frameworks */,
@@ -70,6 +72,7 @@
 			children = (
 				DCBF34182FBFEE9300FB6954 /* hiya */,
 				DCBF34342FBFF31900FB6954 /* hiyaTests */,
+				DCBF344B2FBFF46100FB6954 /* Frameworks */,
 				DCBF34172FBFEE9300FB6954 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -81,6 +84,13 @@
 				DCBF34332FBFF31900FB6954 /* hiyaTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		DCBF344B2FBFF46100FB6954 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -108,6 +118,7 @@
 				DCBF34292FBFF10B00FB6954 /* PostgREST */,
 				DCBF342B2FBFF10B00FB6954 /* Realtime */,
 				DCBF342D2FBFF10B00FB6954 /* Storage */,
+				DCBF344C2FBFF46100FB6954 /* Supabase */,
 			);
 			productName = hiya;
 			productReference = DCBF34162FBFEE9300FB6954 /* hiya.app */;
@@ -516,6 +527,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = DCBF34242FBFF10B00FB6954 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Storage;
+		};
+		DCBF344C2FBFF46100FB6954 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DCBF34242FBFF10B00FB6954 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

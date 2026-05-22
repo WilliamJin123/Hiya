@@ -83,7 +83,7 @@ final class MockHiyaRepository: HiyaRepository {
 }
 
 extension Profile {
-    static let preview = Profile(
+    nonisolated static let preview = Profile(
         id: UUID(),
         displayName: nil,
         dailyGoal: 10,
