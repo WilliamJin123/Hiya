@@ -1,17 +1,12 @@
-//
-//  hiyaApp.swift
-//  hiya
-//
-//  Created by William Jin on 2026-05-21.
-//
-
 import SwiftUI
 
 @main
 struct hiyaApp: App {
+    private let repo: HiyaRepository = LiveHiyaRepository()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView(repo: repo)
         }
     }
 }
