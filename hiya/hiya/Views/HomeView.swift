@@ -23,8 +23,7 @@ struct HomeView: View {
             .task { await vm.refresh() }
             .refreshable { await vm.refresh() }
             .sheet(isPresented: $showingLogSheet, onDismiss: { Task { await vm.refresh() } }) {
-                Text("Log sheet — wired up in Task 8")
-                    .presentationDetents([.medium])
+                LogSheetView(repo: repo)
             }
             .alert("Something went wrong", isPresented: Binding(
                 get: { vm.errorMessage != nil },
