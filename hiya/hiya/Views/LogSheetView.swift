@@ -3,11 +3,12 @@ import SwiftUI
 struct LogSheetView: View {
     let repo: HiyaRepository
     @State private var vm: LogSheetViewModel
+    @State private var showingDeleteConfirm = false
     @Environment(\.dismiss) private var dismiss
 
-    init(repo: HiyaRepository) {
+    init(repo: HiyaRepository, editing: LoggedConversation? = nil) {
         self.repo = repo
-        _vm = State(initialValue: LogSheetViewModel(repo: repo))
+        _vm = State(initialValue: LogSheetViewModel(repo: repo, editing: editing))
     }
 
     var body: some View {
@@ -18,6 +19,7 @@ struct LogSheetView: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                         personSection
                         valenceSection
+                        improvementSection
                         noteSection
                         if let error = vm.errorMessage {
                             Text(error)
@@ -25,6 +27,9 @@ struct LogSheetView: View {
                                 .foregroundColor(Theme.valenceNegative)
                         }
                         saveButton
+                        if vm.editing != nil {
+                            deleteButton
+                        }
                     }
                     .padding(Theme.Spacing.md)
                 }
@@ -37,55 +42,66 @@ struct LogSheetView: View {
                         .font(Theme.FontScale.body())
                 }
                 ToolbarItem(placement: .principal) {
-                    Text("Log a person")
+                    Text(vm.editing == nil ? "Log a person" : "Edit log")
                         .font(Theme.FontScale.body())
                         .foregroundColor(Theme.textPrimary)
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .task { await vm.load() }
+            .task { if vm.editing == nil { await vm.load() } }
         }
         .preferredColorScheme(.dark)
     }
 
+    @ViewBuilder
     private var personSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             sectionHeader("PERSON")
-            TextField("Name", text: $vm.searchText)
-                .font(Theme.FontScale.body())
-                .foregroundColor(Theme.textPrimary)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
-                .padding(12)
-                .background(Theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-                .onChange(of: vm.searchText) { _, _ in
-                    if let selected = vm.selectedPerson, selected.name != vm.searchText {
-                        vm.clearSelection()
-                    }
-                }
-            if !vm.filteredPeople.isEmpty && vm.selectedPerson == nil {
-                VStack(spacing: Theme.Spacing.xs) {
-                    ForEach(vm.filteredPeople.prefix(5)) { person in
-                        Button {
-                            vm.select(person)
-                        } label: {
-                            HStack {
-                                Text(person.name)
-                                    .font(Theme.FontScale.body())
-                                    .foregroundColor(Theme.textPrimary)
-                                Spacer()
-                                Text(relativeLastLogged(person.lastLoggedAt))
-                                    .font(Theme.FontScale.micro())
-                                    .tracking(0.8)
-                                    .foregroundColor(Theme.textSecondary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(Theme.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+            if vm.editing != nil {
+                Text(vm.searchText)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Theme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+            } else {
+                TextField("Name", text: $vm.searchText)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .padding(12)
+                    .background(Theme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                    .onChange(of: vm.searchText) { _, _ in
+                        if let selected = vm.selectedPerson, selected.name != vm.searchText {
+                            vm.clearSelection()
                         }
-                        .buttonStyle(.plain)
+                    }
+                if !vm.filteredPeople.isEmpty && vm.selectedPerson == nil {
+                    VStack(spacing: Theme.Spacing.xs) {
+                        ForEach(vm.filteredPeople.prefix(5)) { person in
+                            Button {
+                                vm.select(person)
+                            } label: {
+                                HStack {
+                                    Text(person.name)
+                                        .font(Theme.FontScale.body())
+                                        .foregroundColor(Theme.textPrimary)
+                                    Spacer()
+                                    Text(relativeLastLogged(person.lastLoggedAt))
+                                        .font(Theme.FontScale.micro())
+                                        .tracking(0.8)
+                                        .foregroundColor(Theme.textSecondary)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(Theme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
             }
@@ -125,6 +141,19 @@ struct LogSheetView: View {
         .buttonStyle(.plain)
     }
 
+    private var improvementSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("WHAT COULD'VE BEEN BETTER? (OPTIONAL)")
+            TextField("", text: $vm.improvementNote, axis: .vertical)
+                .font(Theme.FontScale.body())
+                .foregroundColor(Theme.textPrimary)
+                .lineLimit(1...4)
+                .padding(12)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        }
+    }
+
     private var noteSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             sectionHeader("NOTE (OPTIONAL)")
@@ -144,7 +173,7 @@ struct LogSheetView: View {
                 if await vm.save() { dismiss() }
             }
         } label: {
-            Text("Save")
+            Text(vm.editing == nil ? "Save" : "Update")
                 .font(Theme.FontScale.body())
                 .foregroundColor(vm.canSave ? Theme.textOnAccent : Theme.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -158,6 +187,36 @@ struct LogSheetView: View {
         }
         .buttonStyle(.plain)
         .disabled(!vm.canSave || vm.isSaving)
+    }
+
+    private var deleteButton: some View {
+        Button {
+            showingDeleteConfirm = true
+        } label: {
+            Text("Delete")
+                .font(Theme.FontScale.body())
+                .foregroundColor(Theme.valenceNegative)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+        }
+        .buttonStyle(.plain)
+        .disabled(vm.isDeleting)
+        .confirmationDialog(
+            "Delete this entry?",
+            isPresented: $showingDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    if await vm.delete() { dismiss() }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This can't be undone.")
+        }
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -174,7 +233,23 @@ struct LogSheetView: View {
     }
 }
 
-#Preview {
+#Preview("Create") {
     LogSheetView(repo: MockHiyaRepository())
         .preferredColorScheme(.dark)
+}
+
+#Preview("Edit") {
+    LogSheetView(
+        repo: MockHiyaRepository(),
+        editing: LoggedConversation(
+            id: UUID(),
+            personId: UUID(),
+            personName: "Alex",
+            occurredAt: .now,
+            valence: .positive,
+            note: "lunch",
+            improvementNote: "be more present"
+        )
+    )
+    .preferredColorScheme(.dark)
 }
