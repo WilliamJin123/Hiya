@@ -141,13 +141,13 @@ struct HistoryView: View {
         HStack(spacing: Theme.Spacing.lg) {
             HStack(spacing: 6) {
                 Circle().fill(Theme.accentAmber).frame(width: 6, height: 6)
-                Text("cold")
+                Text("approaches")
                     .font(Theme.FontScale.micro())
                     .foregroundColor(Theme.textSecondary)
             }
             HStack(spacing: 6) {
                 Circle().fill(Theme.accentLavender).frame(width: 6, height: 6)
-                Text("warm")
+                Text("catch-ups")
                     .font(Theme.FontScale.micro())
                     .foregroundColor(Theme.textSecondary)
             }
@@ -324,7 +324,7 @@ private struct DayHeader: View {
                 .foregroundColor(Theme.textSecondary)
             Spacer()
             if section.coldCount > 0 {
-                Text("\(section.coldCount) cold")
+                Text("\(section.coldCount) \(section.coldCount == 1 ? "approach" : "approaches")")
                     .font(Theme.FontScale.micro())
                     .tracking(0.8)
                     .foregroundColor(Theme.accentAmber)

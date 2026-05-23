@@ -15,20 +15,18 @@ struct HomeView: View {
         NavigationStack {
             ZStack {
                 Theme.bgGradient.ignoresSafeArea()
-
-                ScrollView {
-                    VStack(spacing: Theme.Spacing.lg) {
-                        modeToggle
-                        ProgressRingView(state: vm.ringState)
-                        streakLine
-                        logButton
-                        followUpSection
-                        todaysLogSection
+                VStack(spacing: 0) {
+                    modeToggle
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.top, Theme.Spacing.sm)
+                        .padding(.bottom, Theme.Spacing.md)
+                    TabView(selection: $mode) {
+                        pageContent(for: .cold).tag(PersonStatus.cold)
+                        pageContent(for: .warm).tag(PersonStatus.warm)
                     }
-                    .padding(.bottom, Theme.Spacing.xl)
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .animation(.easeInOut(duration: 0.22), value: mode)
                 }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.sm)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -77,17 +75,34 @@ struct HomeView: View {
 
     private var modeToggle: some View {
         Picker("Mode", selection: $mode) {
-            Text("Cold").tag(PersonStatus.cold)
-            Text("Warm").tag(PersonStatus.warm)
+            Text("Approaches").tag(PersonStatus.cold)
+            Text("Catch-ups").tag(PersonStatus.warm)
         }
         .pickerStyle(.segmented)
     }
 
-    private var streakLine: some View {
-        let value = mode == .cold ? vm.streaks.cold : vm.streaks.warm
-        let color = mode == .cold ? Theme.accentAmber : Theme.accentLavender
-        let label = mode == .cold ? "day cold streak" : "day warm streak"
-        let icon = mode == .cold ? "flame.fill" : "heart.fill"
+    @ViewBuilder
+    private func pageContent(for pageMode: PersonStatus) -> some View {
+        ScrollView {
+            VStack(spacing: Theme.Spacing.lg) {
+                ProgressRingView(state: vm.ringState)
+                streakLine(for: pageMode)
+                logButton(for: pageMode)
+                if pageMode == .warm {
+                    followUpSection
+                }
+                todaysLogSection(for: pageMode)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.bottom, Theme.Spacing.xl)
+        }
+    }
+
+    private func streakLine(for pageMode: PersonStatus) -> some View {
+        let value = pageMode == .cold ? vm.streaks.cold : vm.streaks.warm
+        let color = pageMode == .cold ? Theme.accentAmber : Theme.accentLavender
+        let label = pageMode == .cold ? "day approach streak" : "day catch-up streak"
+        let icon = pageMode == .cold ? "flame.fill" : "heart.fill"
         return HStack(spacing: Theme.Spacing.sm) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .semibold))
@@ -104,34 +119,37 @@ struct HomeView: View {
         }
     }
 
-    private var logButton: some View {
-        Button {
+    private func logButton(for pageMode: PersonStatus) -> some View {
+        let accent = pageMode == .cold ? Theme.accentAmber : Theme.accentLavender
+        return Button {
             sheetMode = .create(preselect: nil)
         } label: {
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: "plus.circle.fill")
-                Text("Log a person").font(Theme.FontScale.body())
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 15, weight: .bold))
+                Text("Log")
+                    .font(Theme.FontScale.body().weight(.semibold))
             }
             .foregroundColor(Theme.textOnAccent)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(Theme.accentLavender)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
-            .shadow(color: Theme.accentLavender.opacity(0.3), radius: 14, x: 0, y: 8)
+            .padding(.horizontal, 32)
+            .padding(.vertical, 12)
+            .background(accent)
+            .clipShape(Capsule())
+            .shadow(color: accent.opacity(0.45), radius: 14, x: 0, y: 6)
         }
         .buttonStyle(.plain)
     }
 
-    private var filteredLog: [LoggedConversation] {
-        let wantCold = (mode == .cold)
+    private func filteredLog(for pageMode: PersonStatus) -> [LoggedConversation] {
+        let wantCold = (pageMode == .cold)
         return vm.todaysLog.filter { $0.wasColdAtTime == wantCold }
     }
 
     @ViewBuilder
     private var followUpSection: some View {
-        if mode == .warm && !vm.followUpSuggestions.isEmpty {
+        if !vm.followUpSuggestions.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text("FOLLOW UP")
+                Text("CHECK IN")
                     .font(Theme.FontScale.bodyHeading())
                     .tracking(1.2)
                     .foregroundColor(Theme.textSecondary)
@@ -172,12 +190,12 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private var todaysLogSection: some View {
-        let log = filteredLog
+    private func todaysLogSection(for pageMode: PersonStatus) -> some View {
+        let log = filteredLog(for: pageMode)
         if log.isEmpty {
-            Text(mode == .cold
-                 ? "No cold conversations yet today"
-                 : "No warm conversations yet today")
+            Text(pageMode == .cold
+                 ? "No approaches yet today"
+                 : "No catch-ups yet today")
                 .font(Theme.FontScale.secondary())
                 .foregroundColor(Theme.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -218,34 +236,28 @@ private struct LogRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 0) {
-                Rectangle()
-                    .fill(entry.wasColdAtTime ? Theme.accentAmber : Color.clear)
-                    .frame(width: 3)
-                HStack(spacing: Theme.Spacing.md) {
-                    Circle()
-                        .fill(valenceColor)
-                        .frame(width: 9, height: 9)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.personName)
-                            .font(Theme.FontScale.body())
-                            .foregroundColor(Theme.textPrimary)
-                        if let note = entry.note, !note.isEmpty {
-                            Text(note)
-                                .font(Theme.FontScale.secondary())
-                                .foregroundColor(Theme.textSecondary)
-                                .lineLimit(1)
-                        }
+            HStack(spacing: Theme.Spacing.md) {
+                Circle()
+                    .fill(valenceColor)
+                    .frame(width: 9, height: 9)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.personName)
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    if let note = entry.note, !note.isEmpty {
+                        Text(note)
+                            .font(Theme.FontScale.secondary())
+                            .foregroundColor(Theme.textSecondary)
+                            .lineLimit(1)
                     }
-                    Spacer()
-                    Text(entry.occurredAt, style: .time)
-                        .font(Theme.FontScale.micro())
-                        .tracking(0.8)
-                        .foregroundColor(Theme.textSecondary)
                 }
-                .padding(.leading, Theme.Spacing.sm)
-                .padding(.vertical, 10)
+                Spacer()
+                Text(entry.occurredAt, style: .time)
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.8)
+                    .foregroundColor(Theme.textSecondary)
             }
+            .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
