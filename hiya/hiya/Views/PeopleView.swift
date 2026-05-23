@@ -3,7 +3,6 @@ import SwiftUI
 struct PeopleView: View {
     let repo: HiyaRepository
     @State private var vm: PeopleViewModel
-    @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
     @State private var pendingDeleteId: UUID?
     @State private var editing: Person?
 
@@ -15,17 +14,7 @@ struct PeopleView: View {
     var body: some View {
         ZStack {
             Theme.bgGradient.ignoresSafeArea()
-            VStack(spacing: Theme.Spacing.md) {
-                Picker("Mode", selection: $mode) {
-                    Text("Cold").tag(PersonStatus.cold)
-                    Text("Warm").tag(PersonStatus.warm)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.sm)
-
-                listSection
-            }
+            content
         }
         .navigationTitle("People")
         .navigationBarTitleDisplayMode(.inline)
@@ -65,14 +54,11 @@ struct PeopleView: View {
     }
 
     @ViewBuilder
-    private var listSection: some View {
-        let filtered = vm.people(in: mode)
-        if filtered.isEmpty {
+    private var content: some View {
+        if vm.people.isEmpty {
             VStack(spacing: Theme.Spacing.sm) {
                 Spacer()
-                Text(mode == .cold
-                     ? "No cold people.\nEveryone you've logged is warm by now."
-                     : "No warm people yet.\nLog a conversation to graduate someone.")
+                Text("Nobody yet.\nLog a conversation to get started.")
                     .multilineTextAlignment(.center)
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)
@@ -81,26 +67,52 @@ struct PeopleView: View {
             .padding(.horizontal, Theme.Spacing.md)
         } else {
             List {
-                ForEach(filtered) { person in
-                    Button {
-                        editing = person
-                    } label: {
-                        PersonRow(person: person)
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(Theme.surface)
-                    .listRowSeparatorTint(Theme.divider)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            pendingDeleteId = person.id
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                if !vm.justMet.isEmpty {
+                    Section {
+                        ForEach(vm.justMet) { person in
+                            personRowButton(person)
                         }
+                    } header: {
+                        Text("JUST MET")
+                            .font(Theme.FontScale.bodyHeading())
+                            .tracking(1.2)
+                            .foregroundColor(Theme.accentAmber)
+                    }
+                }
+                if !vm.recurring.isEmpty {
+                    Section {
+                        ForEach(vm.recurring) { person in
+                            personRowButton(person)
+                        }
+                    } header: {
+                        Text("PEOPLE")
+                            .font(Theme.FontScale.bodyHeading())
+                            .tracking(1.2)
+                            .foregroundColor(Theme.textSecondary)
                     }
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private func personRowButton(_ person: Person) -> some View {
+        Button {
+            editing = person
+        } label: {
+            PersonRow(person: person)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(Theme.surface)
+        .listRowSeparatorTint(Theme.divider)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                pendingDeleteId = person.id
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 }
@@ -110,7 +122,6 @@ private struct PersonRow: View {
 
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
-            statusBadge
             VStack(alignment: .leading, spacing: 2) {
                 Text(person.name)
                     .font(Theme.FontScale.body())
@@ -129,13 +140,6 @@ private struct PersonRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-    }
-
-    private var statusBadge: some View {
-        Circle()
-            .fill(person.status == .cold ? Theme.accentAmber : Theme.accentLavender)
-            .frame(width: 9, height: 9)
-            .frame(width: 24)
     }
 
     private var subtitleText: String {

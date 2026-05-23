@@ -52,15 +52,14 @@ struct PersonDetailSheet: View {
     }
 
     private var header: some View {
-        let accent = person.status == .cold ? Theme.accentAmber : Theme.accentLavender
-        return HStack(spacing: Theme.Spacing.md) {
-            Circle()
-                .fill(accent)
-                .frame(width: 10, height: 10)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(person.status == .cold ? "Cold" : "Warm")
-                    .font(Theme.FontScale.body())
-                    .foregroundColor(accent)
+        HStack(spacing: Theme.Spacing.md) {
+            VStack(alignment: .leading, spacing: 4) {
+                if person.status == .cold {
+                    Text("JUST MET")
+                        .font(Theme.FontScale.micro())
+                        .tracking(1.2)
+                        .foregroundColor(Theme.accentAmber)
+                }
                 Text("Last seen \(relative(person.lastLoggedAt))")
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)

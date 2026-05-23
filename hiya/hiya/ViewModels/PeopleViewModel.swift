@@ -13,8 +13,14 @@ final class PeopleViewModel {
         self.repo = repo
     }
 
-    func people(in mode: PersonStatus) -> [Person] {
-        people.filter { $0.status == mode }
+    var justMet: [Person] {
+        people.filter { $0.status == .cold }
+            .sorted { $0.lastLoggedAt > $1.lastLoggedAt }
+    }
+
+    var recurring: [Person] {
+        people.filter { $0.status == .warm }
+            .sorted { $0.lastLoggedAt > $1.lastLoggedAt }
     }
 
     func load() async {

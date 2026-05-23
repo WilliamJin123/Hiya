@@ -342,34 +342,28 @@ private struct EntryRow: View {
     let entry: LoggedConversation
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(entry.wasColdAtTime ? Theme.accentAmber : Color.clear)
-                .frame(width: 3)
-            HStack(spacing: Theme.Spacing.md) {
-                Circle()
-                    .fill(valenceColor)
-                    .frame(width: 9, height: 9)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.personName)
-                        .font(Theme.FontScale.body())
-                        .foregroundColor(Theme.textPrimary)
-                    if let note = entry.note, !note.isEmpty {
-                        Text(note)
-                            .font(Theme.FontScale.secondary())
-                            .foregroundColor(Theme.textSecondary)
-                            .lineLimit(2)
-                    }
+        HStack(spacing: Theme.Spacing.md) {
+            Circle()
+                .fill(valenceColor)
+                .frame(width: 9, height: 9)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.personName)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                if let note = entry.note, !note.isEmpty {
+                    Text(note)
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .lineLimit(2)
                 }
-                Spacer()
-                Text(entry.occurredAt, style: .time)
-                    .font(Theme.FontScale.micro())
-                    .tracking(0.8)
-                    .foregroundColor(Theme.textSecondary)
             }
-            .padding(.leading, Theme.Spacing.sm)
-            .padding(.vertical, 4)
+            Spacer()
+            Text(entry.occurredAt, style: .time)
+                .font(Theme.FontScale.micro())
+                .tracking(0.8)
+                .foregroundColor(Theme.textSecondary)
         }
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
 

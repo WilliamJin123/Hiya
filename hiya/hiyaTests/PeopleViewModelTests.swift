@@ -16,11 +16,10 @@ struct PeopleViewModelTests {
         #expect(vm.people.count == 2)
     }
 
-    @Test func filter_byMode_returnsOnlyMatchingStatus() async throws {
+    @Test func slices_separateJustMetFromRecurring() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
         _ = try await repo.createPerson(name: "Bea")
-        // Simulate alex having graduated (prior day): mutate directly.
         if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
             repo.people[idx].status = .warm
             repo.people[idx].statusChangedAt = .now
@@ -29,10 +28,8 @@ struct PeopleViewModelTests {
         let vm = PeopleViewModel(repo: repo)
         await vm.load()
 
-        let coldNames = vm.people(in: .cold).map(\.name).sorted()
-        let warmNames = vm.people(in: .warm).map(\.name).sorted()
-        #expect(coldNames == ["Bea"])
-        #expect(warmNames == ["Alex"])
+        #expect(vm.justMet.map(\.name) == ["Bea"])
+        #expect(vm.recurring.map(\.name) == ["Alex"])
     }
 
     @Test func updateNotes_persistsAndReloads() async throws {
