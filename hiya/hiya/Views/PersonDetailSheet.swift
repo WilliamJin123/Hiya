@@ -52,14 +52,15 @@ struct PersonDetailSheet: View {
     }
 
     private var header: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            Image(systemName: person.status == .cold ? "flame.fill" : "hand.wave.fill")
-                .foregroundColor(person.status == .cold ? Theme.accentAmber : Theme.accentLavender)
-                .font(.system(size: 22))
+        let accent = person.status == .cold ? Theme.accentAmber : Theme.accentLavender
+        return HStack(spacing: Theme.Spacing.md) {
+            Circle()
+                .fill(accent)
+                .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
                 Text(person.status == .cold ? "Cold" : "Warm")
                     .font(Theme.FontScale.body())
-                    .foregroundColor(Theme.textPrimary)
+                    .foregroundColor(accent)
                 Text("Last seen \(relative(person.lastLoggedAt))")
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)

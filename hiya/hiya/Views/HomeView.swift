@@ -86,14 +86,14 @@ struct HomeView: View {
     private var streakLine: some View {
         let value = mode == .cold ? vm.streaks.cold : vm.streaks.warm
         let color = mode == .cold ? Theme.accentAmber : Theme.accentLavender
-        let icon  = mode == .cold ? "flame.fill" : "hand.wave.fill"
         let label = mode == .cold ? "day cold streak" : "day warm streak"
         return HStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: icon)
-                .foregroundColor(color)
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
             Text("\(value)")
                 .font(.custom(Theme.FontName.counterMono, size: 22).weight(.semibold))
-                .foregroundColor(Theme.textPrimary)
+                .foregroundColor(color)
                 .contentTransition(.numericText())
             Text(label)
                 .font(Theme.FontScale.secondary())
@@ -138,10 +138,9 @@ struct HomeView: View {
                         sheetMode = .create(preselect: person)
                     } label: {
                         HStack(spacing: Theme.Spacing.md) {
-                            Image(systemName: "hand.wave.fill")
-                                .foregroundColor(Theme.accentLavender)
-                                .font(.system(size: 14))
-                                .frame(width: 24)
+                            Circle()
+                                .fill(Theme.accentLavender)
+                                .frame(width: 8, height: 8)
                             Text(person.name)
                                 .font(Theme.FontScale.body())
                                 .foregroundColor(Theme.textPrimary)
@@ -216,35 +215,34 @@ private struct LogRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: Theme.Spacing.md) {
-                Circle()
-                    .fill(valenceColor)
-                    .frame(width: 9, height: 9)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(entry.wasColdAtTime ? Theme.accentAmber : Color.clear)
+                    .frame(width: 3)
+                HStack(spacing: Theme.Spacing.md) {
+                    Circle()
+                        .fill(valenceColor)
+                        .frame(width: 9, height: 9)
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(entry.personName)
                             .font(Theme.FontScale.body())
                             .foregroundColor(Theme.textPrimary)
-                        if entry.wasColdAtTime {
-                            Image(systemName: "flame.fill")
-                                .foregroundColor(Theme.accentAmber)
-                                .font(.system(size: 11))
+                        if let note = entry.note, !note.isEmpty {
+                            Text(note)
+                                .font(Theme.FontScale.secondary())
+                                .foregroundColor(Theme.textSecondary)
+                                .lineLimit(1)
                         }
                     }
-                    if let note = entry.note, !note.isEmpty {
-                        Text(note)
-                            .font(Theme.FontScale.secondary())
-                            .foregroundColor(Theme.textSecondary)
-                            .lineLimit(1)
-                    }
+                    Spacer()
+                    Text(entry.occurredAt, style: .time)
+                        .font(Theme.FontScale.micro())
+                        .tracking(0.8)
+                        .foregroundColor(Theme.textSecondary)
                 }
-                Spacer()
-                Text(entry.occurredAt, style: .time)
-                    .font(Theme.FontScale.micro())
-                    .tracking(0.8)
-                    .foregroundColor(Theme.textSecondary)
+                .padding(.leading, Theme.Spacing.sm)
+                .padding(.vertical, 10)
             }
-            .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -132,9 +132,9 @@ private struct PersonRow: View {
     }
 
     private var statusBadge: some View {
-        Image(systemName: person.status == .cold ? "flame.fill" : "hand.wave.fill")
-            .foregroundColor(person.status == .cold ? Theme.accentAmber : Theme.accentLavender)
-            .font(.system(size: 14))
+        Circle()
+            .fill(person.status == .cold ? Theme.accentAmber : Theme.accentLavender)
+            .frame(width: 9, height: 9)
             .frame(width: 24)
     }
 

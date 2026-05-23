@@ -86,12 +86,13 @@ private struct DayHeader: View {
                 .tracking(1.2)
                 .foregroundColor(Theme.textSecondary)
             Spacer()
-            if section.hadCold {
-                Image(systemName: "flame.fill")
+            if section.coldCount > 0 {
+                Text("\(section.coldCount) cold")
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.8)
                     .foregroundColor(Theme.accentAmber)
-                    .font(.system(size: 11))
             }
-            Text("\(section.uniquePeopleCount) ·  \(section.totalCount) log\(section.totalCount == 1 ? "" : "s")")
+            Text("\(section.uniquePeopleCount) · \(section.totalCount) log\(section.totalCount == 1 ? "" : "s")")
                 .font(Theme.FontScale.micro())
                 .tracking(0.8)
                 .foregroundColor(Theme.textSecondary)
@@ -104,35 +105,34 @@ private struct EntryRow: View {
     let entry: LoggedConversation
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            Circle()
-                .fill(valenceColor)
-                .frame(width: 9, height: 9)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(entry.wasColdAtTime ? Theme.accentAmber : Color.clear)
+                .frame(width: 3)
+            HStack(spacing: Theme.Spacing.md) {
+                Circle()
+                    .fill(valenceColor)
+                    .frame(width: 9, height: 9)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(entry.personName)
                         .font(Theme.FontScale.body())
                         .foregroundColor(Theme.textPrimary)
-                    if entry.wasColdAtTime {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(Theme.accentAmber)
-                            .font(.system(size: 11))
+                    if let note = entry.note, !note.isEmpty {
+                        Text(note)
+                            .font(Theme.FontScale.secondary())
+                            .foregroundColor(Theme.textSecondary)
+                            .lineLimit(2)
                     }
                 }
-                if let note = entry.note, !note.isEmpty {
-                    Text(note)
-                        .font(Theme.FontScale.secondary())
-                        .foregroundColor(Theme.textSecondary)
-                        .lineLimit(2)
-                }
+                Spacer()
+                Text(entry.occurredAt, style: .time)
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.8)
+                    .foregroundColor(Theme.textSecondary)
             }
-            Spacer()
-            Text(entry.occurredAt, style: .time)
-                .font(Theme.FontScale.micro())
-                .tracking(0.8)
-                .foregroundColor(Theme.textSecondary)
+            .padding(.leading, Theme.Spacing.sm)
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
 
