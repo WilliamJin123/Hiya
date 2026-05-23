@@ -19,10 +19,12 @@ struct PeopleViewModelTests {
     @Test func filter_byMode_returnsOnlyMatchingStatus() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
-        let bea = try await repo.createPerson(name: "Bea")
-        // Alex logged once → auto-graduates to warm
-        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        _ = bea // bea stays cold
+        _ = try await repo.createPerson(name: "Bea")
+        // Simulate alex having graduated (prior day): mutate directly.
+        if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
+            repo.people[idx].status = .warm
+            repo.people[idx].statusChangedAt = .now
+        }
 
         let vm = PeopleViewModel(repo: repo)
         await vm.load()

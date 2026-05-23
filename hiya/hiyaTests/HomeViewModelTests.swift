@@ -194,7 +194,12 @@ struct HomeViewModelTests {
     @Test func refresh_warmStreakReflectsRepeatLogs() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
-        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // cold (graduates)
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // cold
+        // Simulate cycle reset — graduate alex to warm so the next log is warm.
+        if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
+            repo.people[idx].status = .warm
+            repo.people[idx].statusChangedAt = .now
+        }
         try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // warm
 
         let vm = HomeViewModel(repo: repo)

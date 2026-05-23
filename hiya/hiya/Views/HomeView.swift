@@ -78,7 +78,7 @@ struct HomeView: View {
     private var streakLine: some View {
         let value = mode == .cold ? vm.streaks.cold : vm.streaks.warm
         let color = mode == .cold ? Theme.accentAmber : Theme.accentLavender
-        let icon  = mode == .cold ? "flame.fill" : "sparkles"
+        let icon  = mode == .cold ? "flame.fill" : "hand.wave.fill"
         let label = mode == .cold ? "day cold streak" : "day warm streak"
         return HStack(spacing: Theme.Spacing.sm) {
             Image(systemName: icon)
@@ -130,7 +130,7 @@ struct HomeView: View {
                         sheetMode = .create(preselect: person)
                     } label: {
                         HStack(spacing: Theme.Spacing.md) {
-                            Image(systemName: "sparkles")
+                            Image(systemName: "hand.wave.fill")
                                 .foregroundColor(Theme.accentLavender)
                                 .font(.system(size: 14))
                                 .frame(width: 24)

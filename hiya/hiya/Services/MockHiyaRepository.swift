@@ -70,8 +70,9 @@ final class MockHiyaRepository: HiyaRepository {
         improvementNote: String?
     ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
-        // Mirror the DB trigger: snapshot person.status at insert time,
-        // then graduate cold → warm if the conversation was cold.
+        // Mirror the DB BEFORE INSERT trigger: snapshot person.status onto
+        // was_cold_at_time. We no longer auto-graduate here — graduation is
+        // lazy and time-based, run by graduatePastDuePeople(beforeLog:).
         let currentStatus = people.first(where: { $0.id == personId })?.status ?? .warm
         let wasCold = (currentStatus == .cold)
         let conv = Conversation(
@@ -88,7 +89,13 @@ final class MockHiyaRepository: HiyaRepository {
         conversations.append(conv)
         if let idx = people.firstIndex(where: { $0.id == personId }) {
             people[idx].lastLoggedAt = conv.occurredAt
-            if wasCold {
+        }
+    }
+
+    func graduatePastDuePeople(beforeLog: Date) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        for idx in people.indices {
+            if people[idx].status == .cold && people[idx].lastLoggedAt < beforeLog {
                 people[idx].status = .warm
                 people[idx].statusChangedAt = .now
             }

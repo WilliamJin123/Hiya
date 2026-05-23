@@ -43,6 +43,10 @@ final class HomeViewModel {
                 profile = try await repo.ensureSignedIn()
             }
             let (start, end) = Self.todayWindow()
+            // Lazy time-based graduation: anyone who is still cold but had
+            // their last log before today gets flipped to warm now.
+            try await repo.graduatePastDuePeople(beforeLog: start)
+
             let streakSince = Calendar.current.date(byAdding: .day, value: -90, to: start) ?? start
             async let logResult = repo.todaysLog(start: start, end: end)
             async let activityResult = repo.recentConversationActivity(since: streakSince)

@@ -53,7 +53,7 @@ struct PersonDetailSheet: View {
 
     private var header: some View {
         HStack(spacing: Theme.Spacing.md) {
-            Image(systemName: person.status == .cold ? "flame.fill" : "sparkles")
+            Image(systemName: person.status == .cold ? "flame.fill" : "hand.wave.fill")
                 .foregroundColor(person.status == .cold ? Theme.accentAmber : Theme.accentLavender)
                 .font(.system(size: 22))
             VStack(alignment: .leading, spacing: 2) {

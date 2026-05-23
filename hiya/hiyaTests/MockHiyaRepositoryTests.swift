@@ -12,7 +12,7 @@ struct MockHiyaRepositoryTests {
         #expect(alex.statusChangedAt == nil)
     }
 
-    @Test func logConversation_onColdPerson_snapshotsColdAndGraduates() async throws {
+    @Test func logConversation_onColdPerson_snapshotsCold_andLeavesStatusCold() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
 
@@ -21,23 +21,72 @@ struct MockHiyaRepositoryTests {
         #expect(repo.conversations.count == 1)
         #expect(repo.conversations[0].wasColdAtTime == true)
         let updated = repo.people.first(where: { $0.id == alex.id })!
+        #expect(updated.status == .cold, "cold person stays cold same-day; graduation is lazy and time-based")
+    }
+
+    @Test func logConversation_onWarmPerson_snapshotsWarm() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        // Simulate alex having already graduated to warm (the cycle reset
+        // ran sometime in the past).
+        if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
+            repo.people[idx].status = .warm
+            repo.people[idx].statusChangedAt = .now
+        }
+
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+
+        #expect(repo.conversations.count == 1)
+        #expect(repo.conversations[0].wasColdAtTime == false)
+        let updated = repo.people.first(where: { $0.id == alex.id })!
+        #expect(updated.status == .warm)
+    }
+
+    @Test func graduatePastDuePeople_promotesColdPeopleLastSeenBeforeCutoff() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        // Backdate alex's last log to yesterday — they're past due for graduation.
+        if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
+            repo.people[idx].lastLoggedAt = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+        }
+
+        let today = Calendar.current.startOfDay(for: .now)
+        try await repo.graduatePastDuePeople(beforeLog: today)
+
+        let updated = repo.people.first(where: { $0.id == alex.id })!
         #expect(updated.status == .warm)
         #expect(updated.statusChangedAt != nil)
     }
 
-    @Test func logConversation_onWarmPerson_snapshotsWarmAndStaysWarm() async throws {
+    @Test func graduatePastDuePeople_leavesAlone_todaysFreshPeople() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
         try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        let graduationTime = repo.people.first(where: { $0.id == alex.id })!.statusChangedAt
+        // alex.lastLoggedAt is now (today), well after start-of-today.
 
-        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        let today = Calendar.current.startOfDay(for: .now)
+        try await repo.graduatePastDuePeople(beforeLog: today)
 
-        #expect(repo.conversations.count == 2)
-        #expect(repo.conversations[1].wasColdAtTime == false)
+        let updated = repo.people.first(where: { $0.id == alex.id })!
+        #expect(updated.status == .cold, "today's freshly-met cold people don't graduate")
+    }
+
+    @Test func graduatePastDuePeople_leavesAlone_alreadyWarm() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        // Make alex already warm with a stale lastLoggedAt.
+        if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
+            repo.people[idx].status = .warm
+            repo.people[idx].statusChangedAt = nil
+            repo.people[idx].lastLoggedAt = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+        }
+
+        let today = Calendar.current.startOfDay(for: .now)
+        try await repo.graduatePastDuePeople(beforeLog: today)
+
         let updated = repo.people.first(where: { $0.id == alex.id })!
         #expect(updated.status == .warm)
-        #expect(updated.statusChangedAt == graduationTime, "warm→warm log should not bump statusChangedAt")
+        #expect(updated.statusChangedAt == nil, "warm people are untouched, not re-stamped")
     }
 
     @Test func updatePersonNotes_setsAndClearsNotes() async throws {
@@ -100,6 +149,11 @@ struct MockHiyaRepositoryTests {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
         try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // cold
+        // Simulate the cycle reset: alex graduates to warm.
+        if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
+            repo.people[idx].status = .warm
+            repo.people[idx].statusChangedAt = .now
+        }
         try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // warm
 
         let (start, end) = HomeViewModel.todayWindow()
@@ -107,7 +161,7 @@ struct MockHiyaRepositoryTests {
 
         // log is sorted descending by occurredAt — most recent first
         #expect(log.count == 2)
-        #expect(log[0].wasColdAtTime == false, "most recent log should be warm")
-        #expect(log[1].wasColdAtTime == true, "earlier log should be cold")
+        #expect(log[0].wasColdAtTime == false, "most recent log should be warm (alex graduated)")
+        #expect(log[1].wasColdAtTime == true, "earlier log was cold (alex was still cold)")
     }
 }
