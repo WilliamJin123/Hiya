@@ -81,7 +81,7 @@ struct LogSheetView: View {
                     }
                 if !vm.filteredPeople.isEmpty && vm.selectedPerson == nil {
                     VStack(spacing: Theme.Spacing.xs) {
-                        ForEach(vm.filteredPeople.prefix(5)) { person in
+                        ForEach(vm.filteredPeople) { person in
                             Button {
                                 vm.select(person)
                             } label: {
