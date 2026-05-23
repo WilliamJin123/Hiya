@@ -13,7 +13,7 @@ Each `Person` gains a status: **Cold** (stranger / not-yet-engaged) or **Warm** 
 - New person added → starts **Cold**
 - First conversation logged with them → that conversation counts as a **Cold conversation**; person auto-graduates to **Warm** immediately after
 - Every subsequent conversation = **Warm conversation**
-- Manual override: user can demote a Warm person back to Cold (e.g., haven't seen in 6 months) or promote a Cold person to Warm directly
+- **No manual promote/demote** — Slice 2.4 dropped the idea. The auto-graduation handles every realistic case, and exposing a manual override read as ambiguous in the UI (swipe button shows "Cold" as the *target* state on a Warm person, but looks like a misclassification at a glance). If a "feels-like-cold-again" use case shows up later we can revisit.
 
 **Why this shape:** the user specifically struggles with cold approaches (initiating with strangers) far more than with follow-ups. Treating Cold/Warm as a *person property* — not a per-log chip — means zero friction at log time (no chip to tap), the conversation type is auto-derived from the person's current status, and the People view can section neatly by status.
 
@@ -82,12 +82,14 @@ Lightweight section ("Follow up with") suggesting Warm people you haven't logged
 
 Two switchable lists driven by the same Cold/Warm toggle as Home:
 
-- **Cold list** — strangers and not-yet-engaged contacts (typically only people you just added or manually demoted)
-- **Warm list** — friends-in-progress, sorted by last-seen-recency, with last-logged relative date inline
+- **Cold list** — people you've added but never logged a conversation with (in practice, mostly empty since the LogSheet flow creates-and-logs in one step)
+- **Warm list** — everyone you've ever had a conversation with, sorted by last-seen-recency
 
-Per-row actions: tap to see conversation history with that person; long-press or swipe for promote/demote/delete. Delete a person is genuinely useful for fixing typos that escaped Slice 1.
+Per-row actions:
+- Tap a row → opens a detail sheet for editing **per-person notes** (free-text about who this person is — distinct from per-conversation notes which live on the log)
+- Trailing swipe → Delete (with confirmation, flagging the cascade on conversations)
 
-Promote/demote literally moves the row between the Cold and Warm lists, which is the visible mechanism the user already understands from the toggle.
+No leading swipe / manual promote/demote — see "Core model change" above.
 
 ---
 

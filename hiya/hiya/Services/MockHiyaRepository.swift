@@ -113,18 +113,10 @@ final class MockHiyaRepository: HiyaRepository {
         conversations.removeAll { $0.id == id }
     }
 
-    func promotePerson(id: UUID) async throws {
+    func updatePersonNotes(id: UUID, notes: String?) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         guard let idx = people.firstIndex(where: { $0.id == id }) else { return }
-        people[idx].status = .warm
-        people[idx].statusChangedAt = .now
-    }
-
-    func demotePerson(id: UUID) async throws {
-        if let err = errorToThrow { errorToThrow = nil; throw err }
-        guard let idx = people.firstIndex(where: { $0.id == id }) else { return }
-        people[idx].status = .cold
-        people[idx].statusChangedAt = .now
+        people[idx].notes = notes
     }
 
     func deletePerson(id: UUID) async throws {

@@ -40,26 +40,15 @@ struct MockHiyaRepositoryTests {
         #expect(updated.statusChangedAt == graduationTime, "warm→warm log should not bump statusChangedAt")
     }
 
-    @Test func promotePerson_setsWarm() async throws {
+    @Test func updatePersonNotes_setsAndClearsNotes() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
 
-        try await repo.promotePerson(id: alex.id)
+        try await repo.updatePersonNotes(id: alex.id, notes: "Met at climbing gym")
+        #expect(repo.people.first(where: { $0.id == alex.id })?.notes == "Met at climbing gym")
 
-        let updated = repo.people.first(where: { $0.id == alex.id })!
-        #expect(updated.status == .warm)
-        #expect(updated.statusChangedAt != nil)
-    }
-
-    @Test func demotePerson_setsCold() async throws {
-        let repo = MockHiyaRepository()
-        let alex = try await repo.createPerson(name: "Alex")
-        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        // alex is now warm; demote back to cold
-        try await repo.demotePerson(id: alex.id)
-
-        let updated = repo.people.first(where: { $0.id == alex.id })!
-        #expect(updated.status == .cold)
+        try await repo.updatePersonNotes(id: alex.id, notes: nil)
+        #expect(repo.people.first(where: { $0.id == alex.id })?.notes == nil)
     }
 
     @Test func followUpSuggestions_returnsOnlyWarmPeopleNotSeenInWindow() async throws {

@@ -33,31 +33,29 @@ struct PeopleViewModelTests {
         #expect(warmNames == ["Alex"])
     }
 
-    @Test func promote_movesPersonToWarm() async throws {
+    @Test func updateNotes_persistsAndReloads() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
 
         let vm = PeopleViewModel(repo: repo)
         await vm.load()
-        await vm.promote(alex.id)
+        await vm.updateNotes(id: alex.id, notes: "Met at climbing gym")
 
         let updated = vm.people.first(where: { $0.id == alex.id })!
-        #expect(updated.status == .warm)
-        #expect(vm.people(in: .cold).isEmpty)
-        #expect(vm.people(in: .warm).count == 1)
+        #expect(updated.notes == "Met at climbing gym")
     }
 
-    @Test func demote_movesPersonToCold() async throws {
+    @Test func updateNotes_withNil_clearsNotes() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
-        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        try await repo.updatePersonNotes(id: alex.id, notes: "something")
 
         let vm = PeopleViewModel(repo: repo)
         await vm.load()
-        await vm.demote(alex.id)
+        await vm.updateNotes(id: alex.id, notes: nil)
 
         let updated = vm.people.first(where: { $0.id == alex.id })!
-        #expect(updated.status == .cold)
+        #expect(updated.notes == nil)
     }
 
     @Test func delete_removesPersonAndConversations() async throws {

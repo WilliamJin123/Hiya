@@ -5,6 +5,7 @@ struct PeopleView: View {
     @State private var vm: PeopleViewModel
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
     @State private var pendingDeleteId: UUID?
+    @State private var editing: Person?
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -31,6 +32,9 @@ struct PeopleView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await vm.load() }
         .refreshable { await vm.load() }
+        .sheet(item: $editing, onDismiss: { Task { await vm.load() } }) { person in
+            PersonDetailSheet(repo: repo, person: person)
+        }
         .confirmationDialog(
             "Delete this person?",
             isPresented: Binding(
@@ -67,7 +71,7 @@ struct PeopleView: View {
             VStack(spacing: Theme.Spacing.sm) {
                 Spacer()
                 Text(mode == .cold
-                     ? "No cold people yet.\nNew connections start here."
+                     ? "No cold people.\nEveryone you've logged is warm by now."
                      : "No warm people yet.\nLog a conversation to graduate someone.")
                     .multilineTextAlignment(.center)
                     .font(Theme.FontScale.secondary())
@@ -78,33 +82,21 @@ struct PeopleView: View {
         } else {
             List {
                 ForEach(filtered) { person in
-                    PersonRow(person: person)
-                        .listRowBackground(Theme.surface)
-                        .listRowSeparatorTint(Theme.divider)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                pendingDeleteId = person.id
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    Button {
+                        editing = person
+                    } label: {
+                        PersonRow(person: person)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Theme.surface)
+                    .listRowSeparatorTint(Theme.divider)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            pendingDeleteId = person.id
+                        } label: {
+                            Label("Delete", systemImage: "trash")
                         }
-                        .swipeActions(edge: .leading) {
-                            if person.status == .cold {
-                                Button {
-                                    Task { await vm.promote(person.id) }
-                                } label: {
-                                    Label("Warm", systemImage: "sparkles")
-                                }
-                                .tint(Theme.accentLavender)
-                            } else {
-                                Button {
-                                    Task { await vm.demote(person.id) }
-                                } label: {
-                                    Label("Cold", systemImage: "flame.fill")
-                                }
-                                .tint(Theme.accentAmber)
-                            }
-                        }
+                    }
                 }
             }
             .listStyle(.plain)
@@ -123,13 +115,20 @@ private struct PersonRow: View {
                 Text(person.name)
                     .font(Theme.FontScale.body())
                     .foregroundColor(Theme.textPrimary)
-                Text(lastLoggedDescription)
+                Text(subtitleText)
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)
+                    .lineLimit(1)
             }
             Spacer()
+            if person.notes?.isEmpty == false {
+                Image(systemName: "note.text")
+                    .foregroundColor(Theme.textSecondary)
+                    .font(.system(size: 12))
+            }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 
     private var statusBadge: some View {
@@ -139,7 +138,10 @@ private struct PersonRow: View {
             .frame(width: 24)
     }
 
-    private var lastLoggedDescription: String {
+    private var subtitleText: String {
+        if let notes = person.notes, !notes.isEmpty {
+            return notes
+        }
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .short
         return "Last seen \(f.localizedString(for: person.lastLoggedAt, relativeTo: .now))"

@@ -28,16 +28,12 @@ final class PeopleViewModel {
         }
     }
 
-    func promote(_ id: UUID) async {
-        await mutate { try await repo.promotePerson(id: id) }
-    }
-
-    func demote(_ id: UUID) async {
-        await mutate { try await repo.demotePerson(id: id) }
-    }
-
     func delete(_ id: UUID) async {
-        await mutate { try await repo.deletePerson(id: id) }
+        await mutate { try await self.repo.deletePerson(id: id) }
+    }
+
+    func updateNotes(id: UUID, notes: String?) async {
+        await mutate { try await self.repo.updatePersonNotes(id: id, notes: notes) }
     }
 
     private func mutate(_ action: () async throws -> Void) async {
