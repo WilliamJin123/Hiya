@@ -9,9 +9,9 @@ final class HistoryViewModel {
     private(set) var isLoading: Bool = false
     var errorMessage: String?
 
-    /// How far back history loads. 90 days is plenty for personal use without
-    /// fetching a huge payload.
-    private let lookbackDays = 90
+    /// How far back history loads. A year covers monthly review patterns;
+    /// calendar nav past this point will show empty months.
+    private let lookbackDays = 365
 
     init(repo: HiyaRepository) {
         self.repo = repo
