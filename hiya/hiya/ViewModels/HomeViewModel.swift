@@ -48,7 +48,7 @@ final class HomeViewModel {
             try await repo.graduatePastDuePeople(beforeLog: start)
 
             let streakSince = Calendar.current.date(byAdding: .day, value: -90, to: start) ?? start
-            async let logResult = repo.todaysLog(start: start, end: end)
+            async let logResult = repo.conversations(start: start, end: end)
             async let activityResult = repo.recentConversationActivity(since: streakSince)
             async let suggestionsResult = repo.followUpSuggestions(thresholdDays: 7, limit: 3)
             let log = try await logResult

@@ -31,6 +31,14 @@ struct HomeView: View {
                 .padding(.top, Theme.Spacing.sm)
             }
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    NavigationLink {
+                        HistoryView(repo: repo)
+                    } label: {
+                        Image(systemName: "calendar")
+                            .foregroundColor(Theme.accentLavender)
+                    }
+                }
                 ToolbarItem(placement: .principal) {
                     Text("Hiya")
                         .font(Theme.FontScale.title())

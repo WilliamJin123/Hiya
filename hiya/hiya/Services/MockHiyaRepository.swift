@@ -43,7 +43,7 @@ final class MockHiyaRepository: HiyaRepository {
         return person
     }
 
-    func todaysLog(start: Date, end: Date) async throws -> [LoggedConversation] {
+    func conversations(start: Date, end: Date) async throws -> [LoggedConversation] {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         return conversations
             .filter { $0.occurredAt >= start && $0.occurredAt < end }

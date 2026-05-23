@@ -4,7 +4,7 @@ protocol HiyaRepository: Sendable {
     func ensureSignedIn() async throws -> Profile
     func listPeople() async throws -> [Person]
     func createPerson(name: String) async throws -> Person
-    func todaysLog(start: Date, end: Date) async throws -> [LoggedConversation]
+    func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
     func logConversation(
         personId: UUID,
         valence: Conversation.Valence?,
@@ -103,7 +103,7 @@ final class LiveHiyaRepository: HiyaRepository {
         return inserted
     }
 
-    func todaysLog(start: Date, end: Date) async throws -> [LoggedConversation] {
+    func conversations(start: Date, end: Date) async throws -> [LoggedConversation] {
         struct Row: Decodable {
             let id: UUID
             let person_id: UUID

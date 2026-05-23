@@ -157,7 +157,7 @@ struct MockHiyaRepositoryTests {
         try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // warm
 
         let (start, end) = HomeViewModel.todayWindow()
-        let log = try await repo.todaysLog(start: start, end: end)
+        let log = try await repo.conversations(start: start, end: end)
 
         // log is sorted descending by occurredAt — most recent first
         #expect(log.count == 2)
