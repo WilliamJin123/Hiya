@@ -16,13 +16,16 @@ struct HomeView: View {
             ZStack {
                 Theme.bgGradient.ignoresSafeArea()
 
-                VStack(spacing: Theme.Spacing.lg) {
-                    modeToggle
-                    ProgressRingView(state: vm.ringState)
-                    streakLine
-                    logButton
-                    todaysLogSection
-                    Spacer(minLength: 0)
+                ScrollView {
+                    VStack(spacing: Theme.Spacing.lg) {
+                        modeToggle
+                        ProgressRingView(state: vm.ringState)
+                        streakLine
+                        logButton
+                        followUpSection
+                        todaysLogSection
+                    }
+                    .padding(.bottom, Theme.Spacing.xl)
                 }
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.top, Theme.Spacing.sm)
@@ -47,8 +50,8 @@ struct HomeView: View {
             .refreshable { await vm.refresh() }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh() } }) { sheet in
                 switch sheet {
-                case .create:
-                    LogSheetView(repo: repo)
+                case .create(let p):
+                    LogSheetView(repo: repo, preselectedPerson: p)
                 case .edit(let entry):
                     LogSheetView(repo: repo, editing: entry)
                 }
@@ -92,7 +95,7 @@ struct HomeView: View {
 
     private var logButton: some View {
         Button {
-            sheetMode = .create
+            sheetMode = .create(preselect: nil)
         } label: {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "plus.circle.fill")
@@ -111,6 +114,51 @@ struct HomeView: View {
     private var filteredLog: [LoggedConversation] {
         let wantCold = (mode == .cold)
         return vm.todaysLog.filter { $0.wasColdAtTime == wantCold }
+    }
+
+    @ViewBuilder
+    private var followUpSection: some View {
+        if mode == .warm && !vm.followUpSuggestions.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("FOLLOW UP")
+                    .font(Theme.FontScale.bodyHeading())
+                    .tracking(1.2)
+                    .foregroundColor(Theme.textSecondary)
+                    .padding(.bottom, Theme.Spacing.sm)
+                ForEach(vm.followUpSuggestions) { person in
+                    Button {
+                        sheetMode = .create(preselect: person)
+                    } label: {
+                        HStack(spacing: Theme.Spacing.md) {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(Theme.accentLavender)
+                                .font(.system(size: 14))
+                                .frame(width: 24)
+                            Text(person.name)
+                                .font(Theme.FontScale.body())
+                                .foregroundColor(Theme.textPrimary)
+                            Spacer()
+                            Text(relativeLastLogged(person.lastLoggedAt))
+                                .font(Theme.FontScale.micro())
+                                .tracking(0.8)
+                                .foregroundColor(Theme.textSecondary)
+                        }
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    if person.id != vm.followUpSuggestions.last?.id {
+                        Theme.divider.frame(height: 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func relativeLastLogged(_ date: Date) -> String {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f.localizedString(for: date, relativeTo: .now)
     }
 
     @ViewBuilder
@@ -143,12 +191,12 @@ struct HomeView: View {
 }
 
 enum LogSheetMode: Identifiable {
-    case create
+    case create(preselect: Person?)
     case edit(LoggedConversation)
 
     var id: String {
         switch self {
-        case .create: "create"
+        case .create(let p): p.map { "create-\($0.id.uuidString)" } ?? "create"
         case .edit(let c): "edit-\(c.id.uuidString)"
         }
     }

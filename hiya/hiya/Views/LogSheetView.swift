@@ -6,9 +6,17 @@ struct LogSheetView: View {
     @State private var showingDeleteConfirm = false
     @Environment(\.dismiss) private var dismiss
 
-    init(repo: HiyaRepository, editing: LoggedConversation? = nil) {
+    init(
+        repo: HiyaRepository,
+        editing: LoggedConversation? = nil,
+        preselectedPerson: Person? = nil
+    ) {
         self.repo = repo
-        _vm = State(initialValue: LogSheetViewModel(repo: repo, editing: editing))
+        _vm = State(initialValue: LogSheetViewModel(
+            repo: repo,
+            editing: editing,
+            preselectedPerson: preselectedPerson
+        ))
     }
 
     var body: some View {

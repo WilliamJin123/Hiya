@@ -22,6 +22,7 @@ protocol HiyaRepository: Sendable {
     func demotePerson(id: UUID) async throws
     func deletePerson(id: UUID) async throws
     func recentConversationActivity(since: Date) async throws -> [ConversationActivity]
+    func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person]
 }
 
 struct LoggedConversation: Identifiable, Sendable, Equatable {
@@ -228,6 +229,19 @@ final class LiveHiyaRepository: HiyaRepository {
         return rows.map {
             ConversationActivity(occurredAt: $0.occurred_at, wasColdAtTime: $0.was_cold_at_time)
         }
+    }
+
+    func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person] {
+        let threshold = Calendar.current.date(byAdding: .day, value: -thresholdDays, to: .now) ?? .now
+        return try await client
+            .from("people")
+            .select()
+            .eq("status", value: "warm")
+            .lt("last_logged_at", value: threshold.iso8601String)
+            .order("last_logged_at", ascending: true)
+            .limit(limit)
+            .execute()
+            .value
     }
 }
 

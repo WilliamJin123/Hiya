@@ -9,6 +9,7 @@ final class HomeViewModel {
     private(set) var count: Int = 0
     private(set) var todaysLog: [LoggedConversation] = []
     private(set) var streaks: StreakInfo = .zero
+    private(set) var followUpSuggestions: [Person] = []
     private(set) var isLoading: Bool = false
     var errorMessage: String?
 
@@ -45,11 +46,14 @@ final class HomeViewModel {
             let streakSince = Calendar.current.date(byAdding: .day, value: -90, to: start) ?? start
             async let logResult = repo.todaysLog(start: start, end: end)
             async let activityResult = repo.recentConversationActivity(since: streakSince)
+            async let suggestionsResult = repo.followUpSuggestions(thresholdDays: 7, limit: 3)
             let log = try await logResult
             let activity = try await activityResult
+            let suggestions = try await suggestionsResult
             self.todaysLog = log
             self.count = Set(log.map(\.personId)).count
             self.streaks = StreakInfo.compute(activity: activity)
+            self.followUpSuggestions = suggestions
         } catch {
             errorMessage = error.localizedDescription
         }

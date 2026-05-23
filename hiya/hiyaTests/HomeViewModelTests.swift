@@ -160,6 +160,37 @@ struct HomeViewModelTests {
         #expect(vm.streaks.warm == 0)
     }
 
+    @Test func refresh_loadsFollowUpSuggestions() async throws {
+        let repo = MockHiyaRepository()
+        // Seed a warm person 10 days stale and a fresh warm person.
+        let now = Date.now
+        let stale = Person(
+            id: UUID(),
+            ownerId: repo.profile.id,
+            name: "Stale",
+            status: .warm,
+            statusChangedAt: now,
+            createdAt: now,
+            lastLoggedAt: Calendar.current.date(byAdding: .day, value: -10, to: now)!
+        )
+        let fresh = Person(
+            id: UUID(),
+            ownerId: repo.profile.id,
+            name: "Fresh",
+            status: .warm,
+            statusChangedAt: now,
+            createdAt: now,
+            lastLoggedAt: now
+        )
+        repo.people.append(stale)
+        repo.people.append(fresh)
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(vm.followUpSuggestions.map(\.name) == ["Stale"])
+    }
+
     @Test func refresh_warmStreakReflectsRepeatLogs() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")

@@ -140,6 +140,17 @@ final class MockHiyaRepository: HiyaRepository {
             .filter { $0.occurredAt >= since }
             .map { ConversationActivity(occurredAt: $0.occurredAt, wasColdAtTime: $0.wasColdAtTime) }
     }
+
+    func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        let threshold = Calendar.current.date(byAdding: .day, value: -thresholdDays, to: .now) ?? .now
+        return Array(
+            people
+                .filter { $0.status == .warm && $0.lastLoggedAt < threshold }
+                .sorted { $0.lastLoggedAt < $1.lastLoggedAt }
+                .prefix(limit)
+        )
+    }
 }
 
 extension Profile {
