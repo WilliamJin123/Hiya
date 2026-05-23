@@ -35,7 +35,11 @@ final class LogSheetViewModel {
         return !trimmedSearch.isEmpty
     }
 
-    init(repo: HiyaRepository, editing: LoggedConversation? = nil) {
+    init(
+        repo: HiyaRepository,
+        editing: LoggedConversation? = nil,
+        preselectedPerson: Person? = nil
+    ) {
         self.repo = repo
         self.editing = editing
         if let editing {
@@ -43,6 +47,9 @@ final class LogSheetViewModel {
             valence = editing.valence
             note = editing.note ?? ""
             improvementNote = editing.improvementNote ?? ""
+        } else if let preselected = preselectedPerson {
+            selectedPerson = preselected
+            searchText = preselected.name
         }
     }
 

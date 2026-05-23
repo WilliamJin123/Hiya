@@ -34,6 +34,8 @@ final class MockHiyaRepository: HiyaRepository {
             id: UUID(),
             ownerId: profile.id,
             name: name,
+            status: .cold,
+            statusChangedAt: nil,
             createdAt: .now,
             lastLoggedAt: .now
         )
@@ -41,12 +43,7 @@ final class MockHiyaRepository: HiyaRepository {
         return person
     }
 
-    func conversationCount(start: Date, end: Date) async throws -> Int {
-        if let err = errorToThrow { errorToThrow = nil; throw err }
-        return conversations.filter { $0.occurredAt >= start && $0.occurredAt < end }.count
-    }
-
-    func todaysLog(start: Date, end: Date) async throws -> [LoggedConversation] {
+    func conversations(start: Date, end: Date) async throws -> [LoggedConversation] {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         return conversations
             .filter { $0.occurredAt >= start && $0.occurredAt < end }
@@ -60,7 +57,8 @@ final class MockHiyaRepository: HiyaRepository {
                     occurredAt: conv.occurredAt,
                     valence: conv.valence,
                     note: conv.note,
-                    improvementNote: conv.improvementNote
+                    improvementNote: conv.improvementNote,
+                    wasColdAtTime: conv.wasColdAtTime
                 )
             }
     }
@@ -72,6 +70,11 @@ final class MockHiyaRepository: HiyaRepository {
         improvementNote: String?
     ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
+        // Mirror the DB BEFORE INSERT trigger: snapshot person.status onto
+        // was_cold_at_time. We no longer auto-graduate here — graduation is
+        // lazy and time-based, run by graduatePastDuePeople(beforeLog:).
+        let currentStatus = people.first(where: { $0.id == personId })?.status ?? .warm
+        let wasCold = (currentStatus == .cold)
         let conv = Conversation(
             id: UUID(),
             ownerId: profile.id,
@@ -80,11 +83,22 @@ final class MockHiyaRepository: HiyaRepository {
             valence: valence,
             note: note,
             improvementNote: improvementNote,
+            wasColdAtTime: wasCold,
             createdAt: .now
         )
         conversations.append(conv)
         if let idx = people.firstIndex(where: { $0.id == personId }) {
             people[idx].lastLoggedAt = conv.occurredAt
+        }
+    }
+
+    func graduatePastDuePeople(beforeLog: Date) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        for idx in people.indices {
+            if people[idx].status == .cold && people[idx].lastLoggedAt < beforeLog {
+                people[idx].status = .warm
+                people[idx].statusChangedAt = .now
+            }
         }
     }
 
@@ -104,6 +118,37 @@ final class MockHiyaRepository: HiyaRepository {
     func deleteConversation(id: UUID) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         conversations.removeAll { $0.id == id }
+    }
+
+    func updatePersonNotes(id: UUID, notes: String?) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let idx = people.firstIndex(where: { $0.id == id }) else { return }
+        people[idx].notes = notes
+    }
+
+    func deletePerson(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        // Mirror the DB cascade — removing a person also removes their logs.
+        people.removeAll { $0.id == id }
+        conversations.removeAll { $0.personId == id }
+    }
+
+    func recentConversationActivity(since: Date) async throws -> [ConversationActivity] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        return conversations
+            .filter { $0.occurredAt >= since }
+            .map { ConversationActivity(occurredAt: $0.occurredAt, wasColdAtTime: $0.wasColdAtTime) }
+    }
+
+    func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        let threshold = Calendar.current.date(byAdding: .day, value: -thresholdDays, to: .now) ?? .now
+        return Array(
+            people
+                .filter { $0.status == .warm && $0.lastLoggedAt < threshold }
+                .sorted { $0.lastLoggedAt < $1.lastLoggedAt }
+                .prefix(limit)
+        )
     }
 }
 

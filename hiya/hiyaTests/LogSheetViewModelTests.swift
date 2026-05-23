@@ -120,6 +120,25 @@ struct LogSheetViewModelTests {
         #expect(vm.errorMessage != nil)
     }
 
+    @Test func init_withPreselectedPerson_setsSelectionAndSearchText() async {
+        let person = Person(
+            id: UUID(),
+            ownerId: UUID(),
+            name: "Alex",
+            status: .warm,
+            statusChangedAt: .now,
+            createdAt: .now,
+            lastLoggedAt: .now
+        )
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, preselectedPerson: person)
+
+        #expect(vm.selectedPerson?.id == person.id)
+        #expect(vm.searchText == "Alex")
+        #expect(vm.canSave == true)
+        #expect(vm.editing == nil)
+    }
+
     @Test func init_withEditing_prefillsFields() async {
         let logged = LoggedConversation(
             id: UUID(),

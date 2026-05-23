@@ -6,9 +6,17 @@ struct LogSheetView: View {
     @State private var showingDeleteConfirm = false
     @Environment(\.dismiss) private var dismiss
 
-    init(repo: HiyaRepository, editing: LoggedConversation? = nil) {
+    init(
+        repo: HiyaRepository,
+        editing: LoggedConversation? = nil,
+        preselectedPerson: Person? = nil
+    ) {
         self.repo = repo
-        _vm = State(initialValue: LogSheetViewModel(repo: repo, editing: editing))
+        _vm = State(initialValue: LogSheetViewModel(
+            repo: repo,
+            editing: editing,
+            preselectedPerson: preselectedPerson
+        ))
     }
 
     var body: some View {
@@ -81,7 +89,7 @@ struct LogSheetView: View {
                     }
                 if !vm.filteredPeople.isEmpty && vm.selectedPerson == nil {
                     VStack(spacing: Theme.Spacing.xs) {
-                        ForEach(vm.filteredPeople.prefix(5)) { person in
+                        ForEach(vm.filteredPeople) { person in
                             Button {
                                 vm.select(person)
                             } label: {

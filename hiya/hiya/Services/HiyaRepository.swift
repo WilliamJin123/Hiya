@@ -4,8 +4,7 @@ protocol HiyaRepository: Sendable {
     func ensureSignedIn() async throws -> Profile
     func listPeople() async throws -> [Person]
     func createPerson(name: String) async throws -> Person
-    func conversationCount(start: Date, end: Date) async throws -> Int
-    func todaysLog(start: Date, end: Date) async throws -> [LoggedConversation]
+    func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
     func logConversation(
         personId: UUID,
         valence: Conversation.Valence?,
@@ -19,6 +18,11 @@ protocol HiyaRepository: Sendable {
         improvementNote: String?
     ) async throws
     func deleteConversation(id: UUID) async throws
+    func deletePerson(id: UUID) async throws
+    func updatePersonNotes(id: UUID, notes: String?) async throws
+    func graduatePastDuePeople(beforeLog: Date) async throws
+    func recentConversationActivity(since: Date) async throws -> [ConversationActivity]
+    func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person]
 }
 
 struct LoggedConversation: Identifiable, Sendable, Equatable {
@@ -29,6 +33,27 @@ struct LoggedConversation: Identifiable, Sendable, Equatable {
     let valence: Conversation.Valence?
     let note: String?
     let improvementNote: String?
+    let wasColdAtTime: Bool
+
+    init(
+        id: UUID,
+        personId: UUID,
+        personName: String,
+        occurredAt: Date,
+        valence: Conversation.Valence?,
+        note: String?,
+        improvementNote: String?,
+        wasColdAtTime: Bool = false
+    ) {
+        self.id = id
+        self.personId = personId
+        self.personName = personName
+        self.occurredAt = occurredAt
+        self.valence = valence
+        self.note = note
+        self.improvementNote = improvementNote
+        self.wasColdAtTime = wasColdAtTime
+    }
 }
 
 import Supabase
@@ -78,17 +103,7 @@ final class LiveHiyaRepository: HiyaRepository {
         return inserted
     }
 
-    func conversationCount(start: Date, end: Date) async throws -> Int {
-        let response = try await client
-            .from("conversations")
-            .select("id", head: true, count: .exact)
-            .gte("occurred_at", value: start.iso8601String)
-            .lt("occurred_at", value: end.iso8601String)
-            .execute()
-        return response.count ?? 0
-    }
-
-    func todaysLog(start: Date, end: Date) async throws -> [LoggedConversation] {
+    func conversations(start: Date, end: Date) async throws -> [LoggedConversation] {
         struct Row: Decodable {
             let id: UUID
             let person_id: UUID
@@ -96,12 +111,13 @@ final class LiveHiyaRepository: HiyaRepository {
             let valence: Conversation.Valence?
             let note: String?
             let improvement_note: String?
+            let was_cold_at_time: Bool
             let people: PersonName
             struct PersonName: Decodable { let name: String }
         }
         let rows: [Row] = try await client
             .from("conversations")
-            .select("id, person_id, occurred_at, valence, note, improvement_note, people(name)")
+            .select("id, person_id, occurred_at, valence, note, improvement_note, was_cold_at_time, people(name)")
             .gte("occurred_at", value: start.iso8601String)
             .lt("occurred_at", value: end.iso8601String)
             .order("occurred_at", ascending: false)
@@ -115,7 +131,8 @@ final class LiveHiyaRepository: HiyaRepository {
                 occurredAt: $0.occurred_at,
                 valence: $0.valence,
                 note: $0.note,
-                improvementNote: $0.improvement_note
+                improvementNote: $0.improvement_note,
+                wasColdAtTime: $0.was_cold_at_time
             )
         }
     }
@@ -170,6 +187,66 @@ final class LiveHiyaRepository: HiyaRepository {
             .delete()
             .eq("id", value: id)
             .execute()
+    }
+
+    func updatePersonNotes(id: UUID, notes: String?) async throws {
+        struct Update: Encodable { let notes: String? }
+        try await client
+            .from("people")
+            .update(Update(notes: notes))
+            .eq("id", value: id)
+            .execute()
+    }
+
+    func graduatePastDuePeople(beforeLog: Date) async throws {
+        struct Update: Encodable {
+            let status: String
+            let status_changed_at: String
+        }
+        try await client
+            .from("people")
+            .update(Update(status: "warm", status_changed_at: Date.now.iso8601String))
+            .eq("status", value: "cold")
+            .lt("last_logged_at", value: beforeLog.iso8601String)
+            .execute()
+    }
+
+    func deletePerson(id: UUID) async throws {
+        try await client
+            .from("people")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+    }
+
+    func recentConversationActivity(since: Date) async throws -> [ConversationActivity] {
+        struct Row: Decodable {
+            let occurred_at: Date
+            let was_cold_at_time: Bool
+        }
+        let rows: [Row] = try await client
+            .from("conversations")
+            .select("occurred_at, was_cold_at_time")
+            .gte("occurred_at", value: since.iso8601String)
+            .order("occurred_at", ascending: false)
+            .execute()
+            .value
+        return rows.map {
+            ConversationActivity(occurredAt: $0.occurred_at, wasColdAtTime: $0.was_cold_at_time)
+        }
+    }
+
+    func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person] {
+        let threshold = Calendar.current.date(byAdding: .day, value: -thresholdDays, to: .now) ?? .now
+        return try await client
+            .from("people")
+            .select()
+            .eq("status", value: "warm")
+            .lt("last_logged_at", value: threshold.iso8601String)
+            .order("last_logged_at", ascending: true)
+            .limit(limit)
+            .execute()
+            .value
     }
 }
 
