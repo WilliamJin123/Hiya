@@ -87,14 +87,17 @@ struct HomeView: View {
         let value = mode == .cold ? vm.streaks.cold : vm.streaks.warm
         let color = mode == .cold ? Theme.accentAmber : Theme.accentLavender
         let label = mode == .cold ? "day cold streak" : "day warm streak"
+        let icon = mode == .cold ? "flame.fill" : "heart.fill"
         return HStack(spacing: Theme.Spacing.sm) {
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(color)
+                .shadow(color: color.opacity(0.55), radius: 8)
             Text("\(value)")
-                .font(.custom(Theme.FontName.counterMono, size: 22).weight(.semibold))
+                .font(.custom(Theme.FontName.counterMono, size: 32).weight(.semibold))
                 .foregroundColor(color)
                 .contentTransition(.numericText())
+                .shadow(color: color.opacity(0.35), radius: 10)
             Text(label)
                 .font(Theme.FontScale.secondary())
                 .foregroundColor(Theme.textSecondary)

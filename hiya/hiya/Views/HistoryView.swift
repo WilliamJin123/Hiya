@@ -270,27 +270,39 @@ private struct DayCell: View {
         return (s.totalCount - s.coldCount) > 0
     }
 
+    private var heatTint: Color {
+        guard let s = section else { return .clear }
+        let intensity = min(0.45, 0.18 + Double(s.totalCount - 1) * 0.06)
+        if s.hadCold { return Theme.accentAmber.opacity(intensity) }
+        return Theme.accentLavender.opacity(intensity)
+    }
+
+    private var borderColor: Color {
+        guard let s = section else { return .clear }
+        if isToday { return Theme.textPrimary.opacity(0.6) }
+        if s.hadCold && hasWarm { return Theme.accentLavender.opacity(0.65) }
+        return .clear
+    }
+
     var body: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: 2) {
             Text(dayNumber)
                 .font(Theme.FontScale.body())
                 .foregroundColor(section != nil ? Theme.textPrimary : Theme.textSecondary.opacity(0.5))
-            HStack(spacing: 3) {
-                if let s = section, s.coldCount > 0 {
-                    Circle().fill(Theme.accentAmber).frame(width: 5, height: 5)
-                }
-                if hasWarm {
-                    Circle().fill(Theme.accentLavender).frame(width: 5, height: 5)
-                }
-                if section == nil {
-                    Color.clear.frame(width: 5, height: 5)
-                }
+            if let s = section, s.totalCount > 1 {
+                Text("\(s.totalCount)")
+                    .font(Theme.FontScale.micro())
+                    .foregroundColor(Theme.textSecondary)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 44)
+        .frame(maxWidth: .infinity, minHeight: 48)
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .fill(isToday ? Theme.surface : Color.clear)
+                .fill(heatTint)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .stroke(borderColor, lineWidth: 1.5)
         )
     }
 }
