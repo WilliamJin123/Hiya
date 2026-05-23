@@ -74,11 +74,31 @@ struct HomeView: View {
     }
 
     private var modeToggle: some View {
-        Picker("Mode", selection: $mode) {
-            Text("Approaches").tag(PersonStatus.cold)
-            Text("Catch-ups").tag(PersonStatus.warm)
+        HStack(spacing: 4) {
+            modeButton(.cold, label: "Approaches", color: Theme.accentAmber)
+            modeButton(.warm, label: "Catch-ups", color: Theme.accentLavender)
         }
-        .pickerStyle(.segmented)
+        .padding(4)
+        .background(Capsule().fill(Theme.surface))
+    }
+
+    private func modeButton(_ target: PersonStatus, label: String, color: Color) -> some View {
+        let isActive = mode == target
+        return Button {
+            withAnimation(.easeInOut(duration: 0.22)) { mode = target }
+        } label: {
+            Text(label)
+                .font(Theme.FontScale.body().weight(isActive ? .semibold : .medium))
+                .foregroundColor(isActive ? Theme.textOnAccent : color.opacity(0.7))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(isActive ? color : Color.clear)
+                        .shadow(color: isActive ? color.opacity(0.4) : .clear, radius: 8, x: 0, y: 4)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -93,6 +113,7 @@ struct HomeView: View {
                 }
                 todaysLogSection(for: pageMode)
             }
+            .padding(.top, Theme.Spacing.lg)
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.bottom, Theme.Spacing.xl)
         }
