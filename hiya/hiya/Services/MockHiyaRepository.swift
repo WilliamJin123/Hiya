@@ -126,6 +126,13 @@ final class MockHiyaRepository: HiyaRepository {
         people[idx].status = .cold
         people[idx].statusChangedAt = .now
     }
+
+    func recentConversationActivity(since: Date) async throws -> [ConversationActivity] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        return conversations
+            .filter { $0.occurredAt >= since }
+            .map { ConversationActivity(occurredAt: $0.occurredAt, wasColdAtTime: $0.wasColdAtTime) }
+    }
 }
 
 extension Profile {

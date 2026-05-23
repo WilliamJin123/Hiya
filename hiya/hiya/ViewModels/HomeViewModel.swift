@@ -8,6 +8,7 @@ final class HomeViewModel {
     private(set) var profile: Profile?
     private(set) var count: Int = 0
     private(set) var todaysLog: [LoggedConversation] = []
+    private(set) var streaks: StreakInfo = .zero
     private(set) var isLoading: Bool = false
     var errorMessage: String?
 
@@ -41,9 +42,14 @@ final class HomeViewModel {
                 profile = try await repo.ensureSignedIn()
             }
             let (start, end) = Self.todayWindow()
-            let log = try await repo.todaysLog(start: start, end: end)
+            let streakSince = Calendar.current.date(byAdding: .day, value: -90, to: start) ?? start
+            async let logResult = repo.todaysLog(start: start, end: end)
+            async let activityResult = repo.recentConversationActivity(since: streakSince)
+            let log = try await logResult
+            let activity = try await activityResult
             self.todaysLog = log
             self.count = Set(log.map(\.personId)).count
+            self.streaks = StreakInfo.compute(activity: activity)
         } catch {
             errorMessage = error.localizedDescription
         }

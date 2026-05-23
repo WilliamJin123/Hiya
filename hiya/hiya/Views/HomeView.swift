@@ -4,6 +4,7 @@ struct HomeView: View {
     let repo: HiyaRepository
     @State private var vm: HomeViewModel
     @State private var sheetMode: LogSheetMode?
+    @State private var mode: PersonStatus = .cold
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -15,14 +16,16 @@ struct HomeView: View {
             ZStack {
                 Theme.bgGradient.ignoresSafeArea()
 
-                VStack(spacing: Theme.Spacing.xl) {
+                VStack(spacing: Theme.Spacing.lg) {
+                    modeToggle
                     ProgressRingView(state: vm.ringState)
-                        .padding(.top, Theme.Spacing.lg)
+                    streakLine
                     logButton
                     todaysLogSection
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.sm)
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -34,8 +37,8 @@ struct HomeView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .task { await vm.refresh() }
             .refreshable { await vm.refresh() }
-            .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh() } }) { mode in
-                switch mode {
+            .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh() } }) { sheet in
+                switch sheet {
                 case .create:
                     LogSheetView(repo: repo)
                 case .edit(let entry):
@@ -50,6 +53,32 @@ struct HomeView: View {
             } message: {
                 Text(vm.errorMessage ?? "")
             }
+        }
+    }
+
+    private var modeToggle: some View {
+        Picker("Mode", selection: $mode) {
+            Text("Cold").tag(PersonStatus.cold)
+            Text("Warm").tag(PersonStatus.warm)
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var streakLine: some View {
+        let value = mode == .cold ? vm.streaks.cold : vm.streaks.warm
+        let color = mode == .cold ? Theme.accentAmber : Theme.accentLavender
+        let icon  = mode == .cold ? "flame.fill" : "sparkles"
+        let label = mode == .cold ? "day cold streak" : "day warm streak"
+        return HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: icon)
+                .foregroundColor(color)
+            Text("\(value)")
+                .font(.custom(Theme.FontName.counterMono, size: 22).weight(.semibold))
+                .foregroundColor(Theme.textPrimary)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(Theme.FontScale.secondary())
+                .foregroundColor(Theme.textSecondary)
         }
     }
 
@@ -71,10 +100,18 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
+    private var filteredLog: [LoggedConversation] {
+        let wantCold = (mode == .cold)
+        return vm.todaysLog.filter { $0.wasColdAtTime == wantCold }
+    }
+
     @ViewBuilder
     private var todaysLogSection: some View {
-        if vm.todaysLog.isEmpty {
-            Text("No conversations yet today")
+        let log = filteredLog
+        if log.isEmpty {
+            Text(mode == .cold
+                 ? "No cold conversations yet today"
+                 : "No warm conversations yet today")
                 .font(Theme.FontScale.secondary())
                 .foregroundColor(Theme.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -86,9 +123,9 @@ struct HomeView: View {
                     .tracking(1.2)
                     .foregroundColor(Theme.textSecondary)
                     .padding(.bottom, Theme.Spacing.sm)
-                ForEach(vm.todaysLog) { entry in
+                ForEach(log) { entry in
                     LogRow(entry: entry, onTap: { sheetMode = .edit(entry) })
-                    if entry.id != vm.todaysLog.last?.id {
+                    if entry.id != log.last?.id {
                         Theme.divider.frame(height: 1)
                     }
                 }
@@ -120,9 +157,16 @@ private struct LogRow: View {
                     .fill(valenceColor)
                     .frame(width: 9, height: 9)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.personName)
-                        .font(Theme.FontScale.body())
-                        .foregroundColor(Theme.textPrimary)
+                    HStack(spacing: 6) {
+                        Text(entry.personName)
+                            .font(Theme.FontScale.body())
+                            .foregroundColor(Theme.textPrimary)
+                        if entry.wasColdAtTime {
+                            Image(systemName: "flame.fill")
+                                .foregroundColor(Theme.accentAmber)
+                                .font(.system(size: 11))
+                        }
+                    }
                     if let note = entry.note, !note.isEmpty {
                         Text(note)
                             .font(Theme.FontScale.secondary())

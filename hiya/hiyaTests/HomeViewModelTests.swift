@@ -141,4 +141,35 @@ struct HomeViewModelTests {
             Issue.record("expected .overload, got \(vm.ringState)")
         }
     }
+
+    @Test func refresh_loadsStreaksFromActivity() async throws {
+        let repo = MockHiyaRepository()
+        // Two unique people today: first log is cold (graduates them to warm),
+        // second log is also cold (new person, graduates to warm).
+        let alex = try await repo.createPerson(name: "Alex")
+        let bea = try await repo.createPerson(name: "Bea")
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        try await repo.logConversation(personId: bea.id, valence: nil, note: nil, improvementNote: nil)
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        // Both logs were cold (first time meeting both people), so cold streak = 1
+        // Warm streak = 0 (no warm logs)
+        #expect(vm.streaks.cold == 1)
+        #expect(vm.streaks.warm == 0)
+    }
+
+    @Test func refresh_warmStreakReflectsRepeatLogs() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // cold (graduates)
+        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil) // warm
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(vm.streaks.cold == 1)
+        #expect(vm.streaks.warm == 1)
+    }
 }

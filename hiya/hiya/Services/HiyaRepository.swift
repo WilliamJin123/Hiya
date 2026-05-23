@@ -20,6 +20,7 @@ protocol HiyaRepository: Sendable {
     func deleteConversation(id: UUID) async throws
     func promotePerson(id: UUID) async throws
     func demotePerson(id: UUID) async throws
+    func recentConversationActivity(since: Date) async throws -> [ConversationActivity]
 }
 
 struct LoggedConversation: Identifiable, Sendable, Equatable {
@@ -201,6 +202,23 @@ final class LiveHiyaRepository: HiyaRepository {
             .update(Update(status: status, status_changed_at: Date.now.iso8601String))
             .eq("id", value: id)
             .execute()
+    }
+
+    func recentConversationActivity(since: Date) async throws -> [ConversationActivity] {
+        struct Row: Decodable {
+            let occurred_at: Date
+            let was_cold_at_time: Bool
+        }
+        let rows: [Row] = try await client
+            .from("conversations")
+            .select("occurred_at, was_cold_at_time")
+            .gte("occurred_at", value: since.iso8601String)
+            .order("occurred_at", ascending: false)
+            .execute()
+            .value
+        return rows.map {
+            ConversationActivity(occurredAt: $0.occurred_at, wasColdAtTime: $0.was_cold_at_time)
+        }
     }
 }
 
