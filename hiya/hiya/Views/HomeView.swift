@@ -4,7 +4,7 @@ struct HomeView: View {
     let repo: HiyaRepository
     @State private var vm: HomeViewModel
     @State private var sheetMode: LogSheetMode?
-    @State private var mode: PersonStatus = .cold
+    @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -32,6 +32,14 @@ struct HomeView: View {
                     Text("Hiya")
                         .font(Theme.FontScale.title())
                         .foregroundColor(Theme.textPrimary)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        PeopleView(repo: repo)
+                    } label: {
+                        Image(systemName: "person.2.fill")
+                            .foregroundColor(Theme.accentLavender)
+                    }
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)

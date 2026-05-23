@@ -20,6 +20,7 @@ protocol HiyaRepository: Sendable {
     func deleteConversation(id: UUID) async throws
     func promotePerson(id: UUID) async throws
     func demotePerson(id: UUID) async throws
+    func deletePerson(id: UUID) async throws
     func recentConversationActivity(since: Date) async throws -> [ConversationActivity]
 }
 
@@ -200,6 +201,14 @@ final class LiveHiyaRepository: HiyaRepository {
         try await client
             .from("people")
             .update(Update(status: status, status_changed_at: Date.now.iso8601String))
+            .eq("id", value: id)
+            .execute()
+    }
+
+    func deletePerson(id: UUID) async throws {
+        try await client
+            .from("people")
+            .delete()
             .eq("id", value: id)
             .execute()
     }

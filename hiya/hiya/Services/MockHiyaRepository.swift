@@ -127,6 +127,13 @@ final class MockHiyaRepository: HiyaRepository {
         people[idx].statusChangedAt = .now
     }
 
+    func deletePerson(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        // Mirror the DB cascade — removing a person also removes their logs.
+        people.removeAll { $0.id == id }
+        conversations.removeAll { $0.personId == id }
+    }
+
     func recentConversationActivity(since: Date) async throws -> [ConversationActivity] {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         return conversations
