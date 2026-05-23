@@ -34,16 +34,13 @@ final class MockHiyaRepository: HiyaRepository {
             id: UUID(),
             ownerId: profile.id,
             name: name,
+            status: .cold,
+            statusChangedAt: nil,
             createdAt: .now,
             lastLoggedAt: .now
         )
         people.append(person)
         return person
-    }
-
-    func conversationCount(start: Date, end: Date) async throws -> Int {
-        if let err = errorToThrow { errorToThrow = nil; throw err }
-        return conversations.filter { $0.occurredAt >= start && $0.occurredAt < end }.count
     }
 
     func todaysLog(start: Date, end: Date) async throws -> [LoggedConversation] {
@@ -60,7 +57,8 @@ final class MockHiyaRepository: HiyaRepository {
                     occurredAt: conv.occurredAt,
                     valence: conv.valence,
                     note: conv.note,
-                    improvementNote: conv.improvementNote
+                    improvementNote: conv.improvementNote,
+                    wasColdAtTime: conv.wasColdAtTime
                 )
             }
     }
@@ -72,6 +70,10 @@ final class MockHiyaRepository: HiyaRepository {
         improvementNote: String?
     ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
+        // Mirror the DB trigger: snapshot person.status at insert time,
+        // then graduate cold → warm if the conversation was cold.
+        let currentStatus = people.first(where: { $0.id == personId })?.status ?? .warm
+        let wasCold = (currentStatus == .cold)
         let conv = Conversation(
             id: UUID(),
             ownerId: profile.id,
@@ -80,11 +82,16 @@ final class MockHiyaRepository: HiyaRepository {
             valence: valence,
             note: note,
             improvementNote: improvementNote,
+            wasColdAtTime: wasCold,
             createdAt: .now
         )
         conversations.append(conv)
         if let idx = people.firstIndex(where: { $0.id == personId }) {
             people[idx].lastLoggedAt = conv.occurredAt
+            if wasCold {
+                people[idx].status = .warm
+                people[idx].statusChangedAt = .now
+            }
         }
     }
 
@@ -104,6 +111,20 @@ final class MockHiyaRepository: HiyaRepository {
     func deleteConversation(id: UUID) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         conversations.removeAll { $0.id == id }
+    }
+
+    func promotePerson(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let idx = people.firstIndex(where: { $0.id == id }) else { return }
+        people[idx].status = .warm
+        people[idx].statusChangedAt = .now
+    }
+
+    func demotePerson(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let idx = people.firstIndex(where: { $0.id == id }) else { return }
+        people[idx].status = .cold
+        people[idx].statusChangedAt = .now
     }
 }
 

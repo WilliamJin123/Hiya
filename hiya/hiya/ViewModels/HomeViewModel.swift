@@ -41,10 +41,9 @@ final class HomeViewModel {
                 profile = try await repo.ensureSignedIn()
             }
             let (start, end) = Self.todayWindow()
-            async let countResult = repo.conversationCount(start: start, end: end)
-            async let logResult = repo.todaysLog(start: start, end: end)
-            self.count = try await countResult
-            self.todaysLog = try await logResult
+            let log = try await repo.todaysLog(start: start, end: end)
+            self.todaysLog = log
+            self.count = Set(log.map(\.personId)).count
         } catch {
             errorMessage = error.localizedDescription
         }

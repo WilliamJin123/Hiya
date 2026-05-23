@@ -5,11 +5,19 @@ import Foundation
 @MainActor
 struct HomeViewModelTests {
 
+    private func logUniquePeople(_ count: Int, into repo: MockHiyaRepository) async throws {
+        for i in 0..<count {
+            let p = try await repo.createPerson(name: "Person\(i)")
+            try await repo.logConversation(personId: p.id, valence: nil, note: nil, improvementNote: nil)
+        }
+    }
+
     @Test func refreshLoadsCountAndLog() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
+        let bea = try await repo.createPerson(name: "Bea")
         try await repo.logConversation(personId: alex.id, valence: .positive, note: nil, improvementNote: nil)
-        try await repo.logConversation(personId: alex.id, valence: nil, note: "good chat", improvementNote: nil)
+        try await repo.logConversation(personId: bea.id, valence: nil, note: "good chat", improvementNote: nil)
 
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
@@ -18,6 +26,19 @@ struct HomeViewModelTests {
         #expect(vm.goal == 10)
         #expect(vm.todaysLog.count == 2)
         #expect(vm.errorMessage == nil)
+    }
+
+    @Test func count_dedupesByPersonId() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        for _ in 0..<5 {
+            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        }
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(vm.count == 1, "5 logs with the same person should count as 1 unique person")
+        #expect(vm.todaysLog.count == 5, "but every log row should still appear in todaysLog")
     }
 
     @Test func refreshExcludesConversationsOutsideToday() async throws {
@@ -53,10 +74,7 @@ struct HomeViewModelTests {
 
     @Test func progressIsFractionOfGoal() async throws {
         let repo = MockHiyaRepository()
-        let alex = try await repo.createPerson(name: "Alex")
-        for _ in 0..<3 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        }
+        try await logUniquePeople(3, into: repo)
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
@@ -68,10 +86,7 @@ struct HomeViewModelTests {
             id: UUID(), displayName: nil, dailyGoal: 2,
             streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
         ))
-        let alex = try await repo.createPerson(name: "Alex")
-        for _ in 0..<5 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        }
+        try await logUniquePeople(5, into: repo)
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
@@ -80,10 +95,7 @@ struct HomeViewModelTests {
 
     @Test func ringState_isInProgress_whenBelowGoal() async throws {
         let repo = MockHiyaRepository()
-        let alex = try await repo.createPerson(name: "Alex")
-        for _ in 0..<3 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        }
+        try await logUniquePeople(3, into: repo)
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
@@ -101,10 +113,7 @@ struct HomeViewModelTests {
             id: UUID(), displayName: nil, dailyGoal: 5,
             streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
         ))
-        let alex = try await repo.createPerson(name: "Alex")
-        for _ in 0..<5 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        }
+        try await logUniquePeople(5, into: repo)
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
@@ -120,10 +129,7 @@ struct HomeViewModelTests {
             id: UUID(), displayName: nil, dailyGoal: 3,
             streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
         ))
-        let alex = try await repo.createPerson(name: "Alex")
-        for _ in 0..<5 {
-            try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
-        }
+        try await logUniquePeople(5, into: repo)
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 

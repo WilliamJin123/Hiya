@@ -4,6 +4,8 @@ struct Person: Codable, Sendable, Identifiable, Equatable, Hashable {
     let id: UUID
     let ownerId: UUID
     var name: String
+    var status: PersonStatus
+    var statusChangedAt: Date?
     let createdAt: Date
     var lastLoggedAt: Date
 
@@ -11,7 +13,14 @@ struct Person: Codable, Sendable, Identifiable, Equatable, Hashable {
         case id
         case ownerId = "owner_id"
         case name
+        case status
+        case statusChangedAt = "status_changed_at"
         case createdAt = "created_at"
         case lastLoggedAt = "last_logged_at"
     }
+}
+
+enum PersonStatus: String, Codable, Sendable, Equatable, CaseIterable {
+    case cold
+    case warm
 }
