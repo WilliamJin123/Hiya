@@ -71,6 +71,18 @@ struct PeopleViewModelTests {
         #expect(vm.justMet.isEmpty)
     }
 
+    @Test func addPerson_withNote_storesNoteAsWarm() async throws {
+        let repo = MockHiyaRepository()
+        let vm = PeopleViewModel(repo: repo)
+        await vm.load()
+
+        await vm.addPerson(name: "Sam", notes: "from work")
+
+        let sam = vm.people.first { $0.name == "Sam" }!
+        #expect(sam.notes == "from work")
+        #expect(sam.status == .warm)
+    }
+
     @Test func updateNotes_persistsAndReloads() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")

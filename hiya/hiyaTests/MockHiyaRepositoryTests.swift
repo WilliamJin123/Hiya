@@ -12,6 +12,12 @@ struct MockHiyaRepositoryTests {
         #expect(alex.statusChangedAt == nil)
     }
 
+    @Test func createPerson_storesNotes() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex", status: .cold, notes: "climbing gym")
+        #expect(p.notes == "climbing gym")
+    }
+
     @Test func createPerson_withWarmStatus_setsWarmAndStampsChangedAt() async throws {
         let repo = MockHiyaRepository()
         let known = try await repo.createPerson(name: "Mentor", status: .warm)

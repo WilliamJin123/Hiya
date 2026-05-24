@@ -7,6 +7,7 @@ struct PeopleView: View {
     @State private var editing: Person?
     @State private var showingAdd = false
     @State private var newName = ""
+    @State private var newNote = ""
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -34,14 +35,17 @@ struct PeopleView: View {
         .alert("Add someone you know", isPresented: $showingAdd) {
             TextField("Name", text: $newName)
                 .textInputAutocapitalization(.words)
+            TextField("Note (e.g. climbing gym)", text: $newNote)
             Button("Add") {
                 let name = newName
+                let note = newNote
                 newName = ""
-                Task { await vm.addPerson(name: name) }
+                newNote = ""
+                Task { await vm.addPerson(name: name, notes: note) }
             }
-            Button("Cancel", role: .cancel) { newName = "" }
+            Button("Cancel", role: .cancel) { newName = ""; newNote = "" }
         } message: {
-            Text("They'll be added as a Catch-up — someone you already know, no need to log a conversation first.")
+            Text("They'll be added as a Catch-up — someone you already know. The optional note helps tell people with the same name apart.")
         }
         .task { await vm.load() }
         .refreshable { await vm.load() }

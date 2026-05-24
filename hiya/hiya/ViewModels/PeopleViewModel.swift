@@ -85,11 +85,11 @@ final class PeopleViewModel {
     }
 
     /// Add someone you already know, directly as a Catch-up (warm) — no logged
-    /// conversation required.
-    func addPerson(name: String) async {
+    /// conversation required. An optional note differentiates same-named people.
+    func addPerson(name: String, notes: String? = nil) async {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        await mutate { _ = try await self.repo.createPerson(name: trimmed, status: .warm) }
+        await mutate { _ = try await self.repo.createPerson(name: trimmed, status: .warm, notes: notes) }
     }
 
     func updateNotes(id: UUID, notes: String?) async {

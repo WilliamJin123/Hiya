@@ -101,16 +101,17 @@ struct LogSheetView: View {
                             Button {
                                 vm.addExisting(person)
                             } label: {
-                                HStack {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(person.name)
                                         .font(Theme.FontScale.body())
                                         .foregroundColor(Theme.textPrimary)
-                                    Spacer()
-                                    Text(relativeLastLogged(person.lastLoggedAt))
+                                    Text(personSubtitle(person))
                                         .font(Theme.FontScale.micro())
-                                        .tracking(0.8)
+                                        .tracking(0.5)
                                         .foregroundColor(Theme.textSecondary)
+                                        .lineLimit(1)
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 10)
                                 .background(Theme.surface)
@@ -125,7 +126,7 @@ struct LogSheetView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "plus.circle.fill")
                                         .foregroundColor(Theme.accentAmber)
-                                    Text("Add \u{201C}\(vm.trimmedSearch)\u{201D}")
+                                    Text("Add new \u{201C}\(vm.trimmedSearch)\u{201D}")
                                         .font(Theme.FontScale.body())
                                         .foregroundColor(Theme.textPrimary)
                                     Spacer()
@@ -148,6 +149,13 @@ struct LogSheetView: View {
             Text(target.displayName)
                 .font(Theme.FontScale.secondary())
                 .foregroundColor(Theme.textPrimary)
+            if let note = target.note {
+                Text("· \(note)")
+                    .font(Theme.FontScale.micro())
+                    .foregroundColor(Theme.textSecondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: 90)
+            }
             Button {
                 vm.removeTarget(target)
             } label: {
@@ -160,6 +168,11 @@ struct LogSheetView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Capsule().fill(Theme.accentLavender.opacity(0.18)))
+    }
+
+    private func personSubtitle(_ person: Person) -> String {
+        if let notes = person.notes, !notes.isEmpty { return notes }
+        return "Last seen \(relativeLastLogged(person.lastLoggedAt))"
     }
 
     private var whenSection: some View {

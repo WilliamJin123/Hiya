@@ -33,6 +33,30 @@ struct LogSheetViewModelTests {
         #expect(vm.targets.count == 1)
     }
 
+    @Test func save_seedsNewPersonNoteFromConversationNote() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo)
+        await vm.load()
+        vm.addNew("Bea")
+        vm.note = "from work"
+
+        let ok = await vm.save()
+
+        #expect(ok)
+        let bea = repo.people.first { $0.name == "Bea" }!
+        #expect(bea.notes == "from work", "the first note seeds the new person's profile note")
+    }
+
+    @Test func canAddTypedName_trueEvenWhenNameExists() async throws {
+        let repo = MockHiyaRepository()
+        _ = try await repo.createPerson(name: "Alex")
+        let vm = LogSheetViewModel(repo: repo)
+        await vm.load()
+        vm.searchText = "Alex"
+        #expect(vm.canAddTypedName, "can still add a distinct same-named person")
+        #expect(vm.filteredPeople.contains { $0.name == "Alex" }, "existing match is shown to pick")
+    }
+
     @Test func save_foldsTypedNameIntoTarget() async throws {
         let repo = MockHiyaRepository()
         let vm = LogSheetViewModel(repo: repo)

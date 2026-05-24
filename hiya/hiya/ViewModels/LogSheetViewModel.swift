@@ -35,12 +35,12 @@ final class LogSheetViewModel {
         return available.filter { $0.name.lowercased().contains(q) }
     }
 
-    /// Whether the typed text should offer a "create new person" row — only
-    /// when it's non-empty and doesn't exactly match an existing person.
+    /// Whether to offer a "create new person" row. Available whenever there's
+    /// typed text — even if the name matches an existing person, so you can add
+    /// a *distinct* same-named person (differentiated by note). Existing matches
+    /// are listed above the row so you can pick one instead of duplicating.
     var canAddTypedName: Bool {
-        let q = trimmedSearch
-        guard !q.isEmpty else { return false }
-        return !allPeople.contains { $0.name.lowercased() == q.lowercased() }
+        !trimmedSearch.isEmpty
     }
 
     var canSave: Bool {
@@ -140,7 +140,9 @@ final class LogSheetViewModel {
                     case .existing(let person):
                         personIds.append(person.id)
                     case .new(let name):
-                        let created = try await repo.createPerson(name: name, status: .cold)
+                        // The first note about a person seeds their profile note,
+                        // which differentiates same-named people later.
+                        let created = try await repo.createPerson(name: name, status: .cold, notes: noteToSend)
                         personIds.append(created.id)
                     }
                 }
@@ -194,6 +196,15 @@ enum LogTarget: Identifiable, Equatable {
         switch self {
         case .existing(let p): p.name
         case .new(let name):   name
+        }
+    }
+
+    /// Short differentiator shown on the chip (e.g. "climbing gym"). New
+    /// people don't have one yet — their note is seeded on save.
+    var note: String? {
+        switch self {
+        case .existing(let p): (p.notes?.isEmpty == false) ? p.notes : nil
+        case .new:             nil
         }
     }
 }

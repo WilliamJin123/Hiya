@@ -28,14 +28,16 @@ final class MockHiyaRepository: HiyaRepository {
         return people.sorted { $0.lastLoggedAt > $1.lastLoggedAt }
     }
 
-    func createPerson(name: String, status: PersonStatus = .cold) async throws -> Person {
+    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil) async throws -> Person {
         if let err = errorToThrow { errorToThrow = nil; throw err }
+        let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         let person = Person(
             id: UUID(),
             ownerId: profile.id,
             name: name,
             status: status,
             statusChangedAt: status == .warm ? .now : nil,
+            notes: (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil,
             createdAt: .now,
             lastLoggedAt: .now
         )
