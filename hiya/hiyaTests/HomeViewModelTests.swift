@@ -83,6 +83,18 @@ struct HomeViewModelTests {
         #expect(vm.count(for: .cold) == 1, "yesterday's conversation should not count")
     }
 
+    @Test func backDatedLog_doesNotCountToday() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+        try await repo.logConversation(personId: p.id, occurredAt: yesterday, valence: nil, note: nil, improvementNote: nil)
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(vm.count(for: .cold) == 0, "a back-dated log should not count toward today")
+    }
+
     @Test func refreshSetsErrorOnFailure() async {
         let repo = MockHiyaRepository()
         repo.errorToThrow = NSError(domain: "test", code: 1)

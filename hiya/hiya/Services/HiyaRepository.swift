@@ -7,12 +7,14 @@ protocol HiyaRepository: Sendable {
     func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
     func logConversation(
         personId: UUID,
+        occurredAt: Date,
         valence: Conversation.Valence?,
         note: String?,
         improvementNote: String?
     ) async throws
     func updateConversation(
         id: UUID,
+        occurredAt: Date,
         valence: Conversation.Valence?,
         note: String?,
         improvementNote: String?
@@ -139,6 +141,7 @@ final class LiveHiyaRepository: HiyaRepository {
 
     func logConversation(
         personId: UUID,
+        occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
         improvementNote: String?
@@ -147,6 +150,7 @@ final class LiveHiyaRepository: HiyaRepository {
         struct Insert: Encodable {
             let owner_id: UUID
             let person_id: UUID
+            let occurred_at: String
             let valence: Conversation.Valence?
             let note: String?
             let improvement_note: String?
@@ -156,6 +160,7 @@ final class LiveHiyaRepository: HiyaRepository {
             .insert(Insert(
                 owner_id: userId,
                 person_id: personId,
+                occurred_at: occurredAt.iso8601String,
                 valence: valence,
                 note: note,
                 improvement_note: improvementNote
@@ -165,18 +170,25 @@ final class LiveHiyaRepository: HiyaRepository {
 
     func updateConversation(
         id: UUID,
+        occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
         improvementNote: String?
     ) async throws {
         struct Update: Encodable {
+            let occurred_at: String
             let valence: Conversation.Valence?
             let note: String?
             let improvement_note: String?
         }
         try await client
             .from("conversations")
-            .update(Update(valence: valence, note: note, improvement_note: improvementNote))
+            .update(Update(
+                occurred_at: occurredAt.iso8601String,
+                valence: valence,
+                note: note,
+                improvement_note: improvementNote
+            ))
             .eq("id", value: id)
             .execute()
     }

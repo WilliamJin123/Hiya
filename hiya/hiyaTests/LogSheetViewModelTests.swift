@@ -5,6 +5,16 @@ import Foundation
 @MainActor
 struct LogSheetViewModelTests {
 
+    @Test func editing_initializesOccurredAtFromEntry() async {
+        let when = Date(timeIntervalSince1970: 1_700_000_000)
+        let entry = LoggedConversation(
+            id: UUID(), personId: UUID(), personName: "Alex",
+            occurredAt: when, valence: nil, note: nil, improvementNote: nil
+        )
+        let vm = LogSheetViewModel(repo: MockHiyaRepository(), editing: entry)
+        #expect(abs(vm.occurredAt.timeIntervalSince(when)) < 0.001)
+    }
+
     @Test func loadPopulatesExistingPeople() async throws {
         let repo = MockHiyaRepository()
         _ = try await repo.createPerson(name: "Alex")

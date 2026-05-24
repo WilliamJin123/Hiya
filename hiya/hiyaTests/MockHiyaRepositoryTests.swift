@@ -12,6 +12,24 @@ struct MockHiyaRepositoryTests {
         #expect(alex.statusChangedAt == nil)
     }
 
+    @Test func logConversation_honorsOccurredAt_andAdvancesLastLoggedForwardOnly() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let created = repo.people.first { $0.id == p.id }!.lastLoggedAt
+        let earlier = Calendar.current.date(byAdding: .day, value: -3, to: created)!
+
+        // Back-dated log: stored occurredAt is `earlier`, but last seen must NOT regress.
+        try await repo.logConversation(personId: p.id, occurredAt: earlier, valence: nil, note: nil, improvementNote: nil)
+        let conv = repo.conversations.first { $0.personId == p.id }!
+        #expect(abs(conv.occurredAt.timeIntervalSince(earlier)) < 0.001)
+        #expect(repo.people.first { $0.id == p.id }!.lastLoggedAt == created, "back-dating must not regress last seen")
+
+        // Forward-dated log advances last seen.
+        let later = Calendar.current.date(byAdding: .day, value: 2, to: created)!
+        try await repo.logConversation(personId: p.id, occurredAt: later, valence: nil, note: nil, improvementNote: nil)
+        #expect(repo.people.first { $0.id == p.id }!.lastLoggedAt == later)
+    }
+
     @Test func logConversation_onColdPerson_snapshotsCold_andLeavesStatusCold() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")

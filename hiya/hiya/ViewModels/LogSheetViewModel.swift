@@ -12,6 +12,7 @@ final class LogSheetViewModel {
     var valence: Conversation.Valence?
     var note: String = ""
     var improvementNote: String = ""
+    var occurredAt: Date = .now
     private(set) var editing: LoggedConversation?
 
     private(set) var isLoading: Bool = false
@@ -47,6 +48,7 @@ final class LogSheetViewModel {
             valence = editing.valence
             note = editing.note ?? ""
             improvementNote = editing.improvementNote ?? ""
+            occurredAt = editing.occurredAt
         } else if let preselected = preselectedPerson {
             selectedPerson = preselected
             searchText = preselected.name
@@ -88,6 +90,7 @@ final class LogSheetViewModel {
             if let editing {
                 try await repo.updateConversation(
                     id: editing.id,
+                    occurredAt: occurredAt,
                     valence: valence,
                     note: noteToSend,
                     improvementNote: improvementToSend
@@ -102,6 +105,7 @@ final class LogSheetViewModel {
                 }
                 try await repo.logConversation(
                     personId: personId,
+                    occurredAt: occurredAt,
                     valence: valence,
                     note: noteToSend,
                     improvementNote: improvementToSend

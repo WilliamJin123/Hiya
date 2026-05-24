@@ -65,6 +65,7 @@ final class MockHiyaRepository: HiyaRepository {
 
     func logConversation(
         personId: UUID,
+        occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
         improvementNote: String?
@@ -79,7 +80,7 @@ final class MockHiyaRepository: HiyaRepository {
             id: UUID(),
             ownerId: profile.id,
             personId: personId,
-            occurredAt: .now,
+            occurredAt: occurredAt,
             valence: valence,
             note: note,
             improvementNote: improvementNote,
@@ -87,8 +88,9 @@ final class MockHiyaRepository: HiyaRepository {
             createdAt: .now
         )
         conversations.append(conv)
-        if let idx = people.firstIndex(where: { $0.id == personId }) {
-            people[idx].lastLoggedAt = conv.occurredAt
+        // Mirror the DB trigger: last_logged_at only ever moves forward.
+        if let idx = people.firstIndex(where: { $0.id == personId }), people[idx].lastLoggedAt < occurredAt {
+            people[idx].lastLoggedAt = occurredAt
         }
     }
 
@@ -104,12 +106,14 @@ final class MockHiyaRepository: HiyaRepository {
 
     func updateConversation(
         id: UUID,
+        occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
         improvementNote: String?
     ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].occurredAt = occurredAt
         conversations[idx].valence = valence
         conversations[idx].note = note
         conversations[idx].improvementNote = improvementNote
