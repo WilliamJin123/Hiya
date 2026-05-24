@@ -67,8 +67,8 @@ struct HomeView: View {
             .refreshable { await vm.refresh(); await challengesVM.load() }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load() } }) { sheet in
                 switch sheet {
-                case .create(let p):
-                    LogSheetView(repo: repo, preselectedPerson: p)
+                case .create(let p, let mode):
+                    LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode)
                 case .edit(let entry):
                     LogSheetView(repo: repo, editing: entry)
                 }
@@ -158,7 +158,7 @@ struct HomeView: View {
     private func logButton(for pageMode: PersonStatus) -> some View {
         let accent = pageMode == .cold ? Theme.accentAmber : Theme.accentLavender
         return Button {
-            sheetMode = .create(preselect: nil)
+            sheetMode = .create(preselect: nil, mode: pageMode)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "plus")
@@ -244,7 +244,7 @@ struct HomeView: View {
                     .padding(.bottom, Theme.Spacing.sm)
                 ForEach(vm.followUpSuggestions) { person in
                     Button {
-                        sheetMode = .create(preselect: person)
+                        sheetMode = .create(preselect: person, mode: .warm)
                     } label: {
                         HStack(spacing: Theme.Spacing.md) {
                             Circle()
@@ -307,12 +307,12 @@ struct HomeView: View {
 }
 
 enum LogSheetMode: Identifiable {
-    case create(preselect: Person?)
+    case create(preselect: Person?, mode: PersonStatus)
     case edit(LoggedConversation)
 
     var id: String {
         switch self {
-        case .create(let p): p.map { "create-\($0.id.uuidString)" } ?? "create"
+        case .create(let p, let mode): p.map { "create-\($0.id.uuidString)" } ?? "create-\(mode.rawValue)"
         case .edit(let c): "edit-\(c.id.uuidString)"
         }
     }

@@ -97,6 +97,14 @@ final class MockHiyaRepository: HiyaRepository {
         }
     }
 
+    func updatePersonStatus(id: UUID, status: PersonStatus) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        if let i = people.firstIndex(where: { $0.id == id }) {
+            people[i].status = status
+            people[i].statusChangedAt = .now
+        }
+    }
+
     func graduatePastDuePeople(beforeLog: Date) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         for idx in people.indices {

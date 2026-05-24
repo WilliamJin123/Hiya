@@ -50,11 +50,40 @@ struct LogSheetViewModelTests {
     @Test func canAddTypedName_trueEvenWhenNameExists() async throws {
         let repo = MockHiyaRepository()
         _ = try await repo.createPerson(name: "Alex")
-        let vm = LogSheetViewModel(repo: repo)
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
         await vm.load()
         vm.searchText = "Alex"
         #expect(vm.canAddTypedName, "can still add a distinct same-named person")
-        #expect(vm.filteredPeople.contains { $0.name == "Alex" }, "existing match is shown to pick")
+        #expect(vm.filteredPeople.contains { $0.name == "Alex" }, "existing match is shown to pick in warm mode")
+    }
+
+    @Test func coldMode_hidesExistingPeopleSuggestions() async throws {
+        let repo = MockHiyaRepository()
+        _ = try await repo.createPerson(name: "Alex")
+        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        await vm.load()
+        vm.searchText = "Al"
+        #expect(vm.filteredPeople.isEmpty, "cold approaches never suggest existing people")
+    }
+
+    @Test func warmMode_createsNewPersonAsWarm() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
+        await vm.load()
+        vm.addNew("Old Friend")
+        _ = await vm.save()
+        let p = repo.people.first { $0.name == "Old Friend" }!
+        #expect(p.status == .warm, "new people logged from Catch-ups are known → warm")
+    }
+
+    @Test func coldMode_createsNewPersonAsCold() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        await vm.load()
+        vm.addNew("Stranger")
+        _ = await vm.save()
+        let p = repo.people.first { $0.name == "Stranger" }!
+        #expect(p.status == .cold)
     }
 
     @Test func save_foldsTypedNameIntoTarget() async throws {
@@ -94,7 +123,7 @@ struct LogSheetViewModelTests {
         _ = try await repo.createPerson(name: "Alex")
         _ = try await repo.createPerson(name: "Alice")
         _ = try await repo.createPerson(name: "Bob")
-        let vm = LogSheetViewModel(repo: repo)
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
         await vm.load()
 
         vm.searchText = "Al"
@@ -104,7 +133,7 @@ struct LogSheetViewModelTests {
     @Test func filteredPeopleIsCaseInsensitive() async throws {
         let repo = MockHiyaRepository()
         _ = try await repo.createPerson(name: "Alex")
-        let vm = LogSheetViewModel(repo: repo)
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
         await vm.load()
 
         vm.searchText = "ale"

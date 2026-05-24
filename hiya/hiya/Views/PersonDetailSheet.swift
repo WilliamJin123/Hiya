@@ -23,6 +23,9 @@ struct PersonDetailSheet: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                         header
                         notesSection
+                        if person.status == .cold {
+                            moveToWarmButton
+                        }
                         if let error = errorMessage {
                             Text(error)
                                 .font(Theme.FontScale.secondary())
@@ -105,6 +108,25 @@ struct PersonDetailSheet: View {
         .disabled(isSaving)
     }
 
+    private var moveToWarmButton: some View {
+        Button {
+            Task { await moveToWarm() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.right.circle")
+                Text("Move to Catch-ups")
+            }
+            .font(Theme.FontScale.body())
+            .foregroundColor(Theme.accentLavender)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Theme.accentLavender.opacity(0.14))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+        }
+        .buttonStyle(.plain)
+        .disabled(isSaving)
+    }
+
     private func save() async {
         isSaving = true
         errorMessage = nil
@@ -113,6 +135,21 @@ struct PersonDetailSheet: View {
         let toSend = trimmed.isEmpty ? nil : trimmed
         do {
             try await repo.updatePersonNotes(id: person.id, notes: toSend)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func moveToWarm() async {
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        do {
+            // Persist any note edit too, so moving doesn't discard it.
+            let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            try await repo.updatePersonNotes(id: person.id, notes: trimmed.isEmpty ? nil : trimmed)
+            try await repo.updatePersonStatus(id: person.id, status: .warm)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

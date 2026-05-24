@@ -30,6 +30,18 @@ struct MockHiyaRepositoryTests {
         #expect(all.isEmpty)
     }
 
+    @Test func updatePersonStatus_movesColdToWarm() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Kola")   // defaults cold
+        #expect(p.status == .cold)
+
+        try await repo.updatePersonStatus(id: p.id, status: .warm)
+
+        let updated = try await repo.listPeople().first { $0.id == p.id }!
+        #expect(updated.status == .warm)
+        #expect(updated.statusChangedAt != nil)
+    }
+
     @Test func createPerson_storesNotes() async throws {
         let repo = MockHiyaRepository()
         let p = try await repo.createPerson(name: "Alex", status: .cold, notes: "climbing gym")

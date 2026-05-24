@@ -9,13 +9,15 @@ struct LogSheetView: View {
     init(
         repo: HiyaRepository,
         editing: LoggedConversation? = nil,
-        preselectedPerson: Person? = nil
+        preselectedPerson: Person? = nil,
+        creationMode: PersonStatus = .cold
     ) {
         self.repo = repo
         _vm = State(initialValue: LogSheetViewModel(
             repo: repo,
             editing: editing,
-            preselectedPerson: preselectedPerson
+            preselectedPerson: preselectedPerson,
+            creationMode: creationMode
         ))
     }
 

@@ -22,6 +22,7 @@ protocol HiyaRepository: Sendable {
     func deleteConversation(id: UUID) async throws
     func deletePerson(id: UUID) async throws
     func updatePersonNotes(id: UUID, notes: String?) async throws
+    func updatePersonStatus(id: UUID, status: PersonStatus) async throws
     func graduatePastDuePeople(beforeLog: Date) async throws
     func recentConversationActivity(since: Date) async throws -> [ConversationActivity]
     func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person]
@@ -222,6 +223,18 @@ final class LiveHiyaRepository: HiyaRepository {
         try await client
             .from("people")
             .update(Update(notes: notes))
+            .eq("id", value: id)
+            .execute()
+    }
+
+    func updatePersonStatus(id: UUID, status: PersonStatus) async throws {
+        struct Update: Encodable {
+            let status: String
+            let status_changed_at: String
+        }
+        try await client
+            .from("people")
+            .update(Update(status: status.rawValue, status_changed_at: Date.now.iso8601String))
             .eq("id", value: id)
             .execute()
     }
