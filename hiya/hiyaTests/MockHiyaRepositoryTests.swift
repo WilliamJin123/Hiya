@@ -30,6 +30,17 @@ struct MockHiyaRepositoryTests {
         #expect(all.isEmpty)
     }
 
+    @Test func reclassifyConversations_flipsWasColdAtTime() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Kola")   // cold
+        try await repo.logConversation(personId: p.id, valence: nil, note: nil, improvementNote: nil)
+        #expect(repo.conversations.allSatisfy { $0.wasColdAtTime }, "logged cold while a cold person")
+
+        try await repo.reclassifyConversations(personId: p.id, wasCold: false)
+
+        #expect(repo.conversations.allSatisfy { !$0.wasColdAtTime }, "reclassified as warm")
+    }
+
     @Test func updatePersonStatus_movesColdToWarm() async throws {
         let repo = MockHiyaRepository()
         let p = try await repo.createPerson(name: "Kola")   // defaults cold

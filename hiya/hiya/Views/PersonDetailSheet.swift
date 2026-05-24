@@ -150,6 +150,9 @@ struct PersonDetailSheet: View {
             let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
             try await repo.updatePersonNotes(id: person.id, notes: trimmed.isEmpty ? nil : trimmed)
             try await repo.updatePersonStatus(id: person.id, status: .warm)
+            // Someone you already knew was never a cold approach — reclassify
+            // their logs so they leave the Approaches tally (today and history).
+            try await repo.reclassifyConversations(personId: person.id, wasCold: false)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

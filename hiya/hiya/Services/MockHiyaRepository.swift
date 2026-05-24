@@ -105,6 +105,13 @@ final class MockHiyaRepository: HiyaRepository {
         }
     }
 
+    func reclassifyConversations(personId: UUID, wasCold: Bool) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        for i in conversations.indices where conversations[i].personId == personId {
+            conversations[i].wasColdAtTime = wasCold
+        }
+    }
+
     func graduatePastDuePeople(beforeLog: Date) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         for idx in people.indices {
