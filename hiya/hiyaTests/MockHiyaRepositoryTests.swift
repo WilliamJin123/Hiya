@@ -5,6 +5,21 @@ import Foundation
 @MainActor
 struct MockHiyaRepositoryTests {
 
+    /// Test helper: rewrite a note's immutable `createdAt` to set up ordering
+    /// scenarios (PersonNote.createdAt is a `let`, like the other models).
+    private func backdate(_ repo: MockHiyaRepository, noteId: UUID, days: Int) {
+        guard let i = repo.personNoteRows.firstIndex(where: { $0.id == noteId }) else { return }
+        let n = repo.personNoteRows[i]
+        repo.personNoteRows[i] = PersonNote(
+            id: n.id,
+            ownerId: n.ownerId,
+            personId: n.personId,
+            body: n.body,
+            createdAt: Calendar.current.date(byAdding: .day, value: days, to: .now)!,
+            updatedAt: n.updatedAt
+        )
+    }
+
     @Test func createPerson_defaultsToCold() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
@@ -235,5 +250,109 @@ struct MockHiyaRepositoryTests {
         #expect(log.count == 2)
         #expect(log[0].wasColdAtTime == false, "most recent log should be warm (alex graduated)")
         #expect(log[1].wasColdAtTime == true, "earlier log was cold (alex was still cold)")
+    }
+
+    @Test func addPersonNote_seedsTimelineAndDifferentiator() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        #expect(repo.people.first { $0.id == p.id }?.notes == nil)
+
+        _ = try await repo.addPersonNote(personId: p.id, body: "climbing gym")
+
+        #expect(repo.people.first { $0.id == p.id }?.notes == "climbing gym")
+        #expect(try await repo.personNotes(personId: p.id).count == 1)
+    }
+
+    @Test func addPersonNote_secondNoteLeavesDifferentiator() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let first = try await repo.addPersonNote(personId: p.id, body: "first")
+        // Force `first` to be the oldest deterministically.
+        backdate(repo, noteId: first.id, days: -1)
+
+        _ = try await repo.addPersonNote(personId: p.id, body: "second")
+
+        #expect(repo.people.first { $0.id == p.id }?.notes == "first")
+    }
+
+    @Test func updatePersonNote_onOldest_updatesDifferentiator_setsUpdatedAt_keepsCreatedAt() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let first = try await repo.addPersonNote(personId: p.id, body: "first")
+        let originalCreated = first.createdAt
+
+        try await repo.updatePersonNote(id: first.id, body: "first edited")
+
+        let updated = repo.personNoteRows.first { $0.id == first.id }!
+        #expect(updated.body == "first edited")
+        #expect(updated.updatedAt != nil)
+        #expect(updated.createdAt == originalCreated)
+        #expect(repo.people.first { $0.id == p.id }?.notes == "first edited")
+    }
+
+    @Test func updatePersonNote_onNewer_leavesDifferentiator() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let first = try await repo.addPersonNote(personId: p.id, body: "first")
+        backdate(repo, noteId: first.id, days: -1)
+        let second = try await repo.addPersonNote(personId: p.id, body: "second")
+
+        try await repo.updatePersonNote(id: second.id, body: "second edited")
+
+        #expect(repo.people.first { $0.id == p.id }?.notes == "first")
+    }
+
+    @Test func deletePersonNote_oldest_promotesNext() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let first = try await repo.addPersonNote(personId: p.id, body: "first")
+        backdate(repo, noteId: first.id, days: -1)
+        _ = try await repo.addPersonNote(personId: p.id, body: "second")
+
+        try await repo.deletePersonNote(id: first.id)
+
+        #expect(repo.people.first { $0.id == p.id }?.notes == "second")
+    }
+
+    @Test func deletePersonNote_last_clearsDifferentiator() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let only = try await repo.addPersonNote(personId: p.id, body: "only")
+
+        try await repo.deletePersonNote(id: only.id)
+
+        #expect(repo.people.first { $0.id == p.id }?.notes == nil)
+        #expect(try await repo.personNotes(personId: p.id).isEmpty)
+    }
+
+    @Test func createPerson_withNote_createsOneTimelineEntry() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex", status: .cold, notes: "met at gym")
+
+        let notes = try await repo.personNotes(personId: p.id)
+        #expect(notes.count == 1)
+        #expect(notes.first?.body == "met at gym")
+        #expect(repo.people.first { $0.id == p.id }?.notes == "met at gym")
+    }
+
+    @Test func personNotes_returnsNewestFirst() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        let older = try await repo.addPersonNote(personId: p.id, body: "older")
+        backdate(repo, noteId: older.id, days: -1)
+        _ = try await repo.addPersonNote(personId: p.id, body: "newer")
+
+        let notes = try await repo.personNotes(personId: p.id)
+        #expect(notes.map(\.body) == ["newer", "older"])
+    }
+
+    @Test func deletePerson_cascadesNotes() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex", notes: "seed")
+        #expect(repo.personNoteRows.contains { $0.personId == p.id })
+
+        try await repo.deletePerson(id: p.id)
+
+        #expect(!repo.personNoteRows.contains { $0.personId == p.id })
     }
 }

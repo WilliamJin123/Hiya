@@ -22,6 +22,10 @@ protocol HiyaRepository: Sendable {
     func deleteConversation(id: UUID) async throws
     func deletePerson(id: UUID) async throws
     func updatePersonNotes(id: UUID, notes: String?) async throws
+    func personNotes(personId: UUID) async throws -> [PersonNote]
+    func addPersonNote(personId: UUID, body: String) async throws -> PersonNote
+    func updatePersonNote(id: UUID, body: String) async throws
+    func deletePersonNote(id: UUID) async throws
     func updatePersonStatus(id: UUID, status: PersonStatus) async throws
     func reclassifyConversations(personId: UUID, wasCold: Bool) async throws
     func graduatePastDuePeople(beforeLog: Date) async throws
@@ -99,6 +103,8 @@ final class LiveHiyaRepository: HiyaRepository {
 
     func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil) async throws -> Person {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let seed = (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil
         let userId = try await client.auth.user().id
         struct Insert: Encodable {
             let owner_id: UUID
@@ -114,12 +120,29 @@ final class LiveHiyaRepository: HiyaRepository {
                 name: trimmed,
                 status: status.rawValue,
                 status_changed_at: status == .warm ? Date.now.iso8601String : nil,
-                notes: notes
+                notes: seed
             ))
             .select()
             .single()
             .execute()
             .value
+        if let seed {
+            struct NoteInsert: Encodable {
+                let owner_id: UUID
+                let person_id: UUID
+                let body: String
+                let created_at: String
+            }
+            try await client
+                .from("person_notes")
+                .insert(NoteInsert(
+                    owner_id: userId,
+                    person_id: inserted.id,
+                    body: seed,
+                    created_at: inserted.createdAt.iso8601String
+                ))
+                .execute()
+        }
         return inserted
     }
 
@@ -226,6 +249,79 @@ final class LiveHiyaRepository: HiyaRepository {
             .update(Update(notes: notes))
             .eq("id", value: id)
             .execute()
+    }
+
+    func personNotes(personId: UUID) async throws -> [PersonNote] {
+        try await client
+            .from("person_notes")
+            .select()
+            .eq("person_id", value: personId)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func addPersonNote(personId: UUID, body: String) async throws -> PersonNote {
+        let userId = try await client.auth.user().id
+        struct Insert: Encodable {
+            let owner_id: UUID
+            let person_id: UUID
+            let body: String
+        }
+        let inserted: PersonNote = try await client
+            .from("person_notes")
+            .insert(Insert(owner_id: userId, person_id: personId, body: body))
+            .select()
+            .single()
+            .execute()
+            .value
+        try await recomputeDifferentiator(personId: personId)
+        return inserted
+    }
+
+    func updatePersonNote(id: UUID, body: String) async throws {
+        struct Update: Encodable {
+            let body: String
+            let updated_at: String
+        }
+        struct Row: Decodable { let person_id: UUID }
+        let row: Row = try await client
+            .from("person_notes")
+            .update(Update(body: body, updated_at: Date.now.iso8601String))
+            .eq("id", value: id)
+            .select("person_id")
+            .single()
+            .execute()
+            .value
+        try await recomputeDifferentiator(personId: row.person_id)
+    }
+
+    func deletePersonNote(id: UUID) async throws {
+        struct Row: Decodable { let person_id: UUID }
+        let row: Row = try await client
+            .from("person_notes")
+            .delete()
+            .eq("id", value: id)
+            .select("person_id")
+            .single()
+            .execute()
+            .value
+        try await recomputeDifferentiator(personId: row.person_id)
+    }
+
+    /// Keep `people.notes` equal to the oldest note's body (the duplicate-name
+    /// differentiator), or null when the person has no notes.
+    private func recomputeDifferentiator(personId: UUID) async throws {
+        struct Row: Decodable { let body: String }
+        let rows: [Row] = try await client
+            .from("person_notes")
+            .select("body")
+            .eq("person_id", value: personId)
+            .order("created_at", ascending: true)
+            .limit(1)
+            .execute()
+            .value
+        try await updatePersonNotes(id: personId, notes: rows.first?.body)
     }
 
     func updatePersonStatus(id: UUID, status: PersonStatus) async throws {

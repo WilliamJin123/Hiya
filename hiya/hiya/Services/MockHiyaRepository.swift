@@ -6,6 +6,7 @@ final class MockHiyaRepository: HiyaRepository {
     var people: [Person]
     var conversations: [Conversation]
     var challengeRows: [Challenge] = []
+    var personNoteRows: [PersonNote] = []
 
     var errorToThrow: Error?
 
@@ -32,17 +33,28 @@ final class MockHiyaRepository: HiyaRepository {
     func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil) async throws -> Person {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let seed = (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil
         let person = Person(
             id: UUID(),
             ownerId: profile.id,
             name: name,
             status: status,
             statusChangedAt: status == .warm ? .now : nil,
-            notes: (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil,
+            notes: seed,
             createdAt: .now,
             lastLoggedAt: .now
         )
         people.append(person)
+        if let seed {
+            personNoteRows.append(PersonNote(
+                id: UUID(),
+                ownerId: profile.id,
+                personId: person.id,
+                body: seed,
+                createdAt: person.createdAt,
+                updatedAt: nil
+            ))
+        }
         return person
     }
 
@@ -148,11 +160,60 @@ final class MockHiyaRepository: HiyaRepository {
         people[idx].notes = notes
     }
 
+    func personNotes(personId: UUID) async throws -> [PersonNote] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        return personNoteRows
+            .filter { $0.personId == personId }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    func addPersonNote(personId: UUID, body: String) async throws -> PersonNote {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        let note = PersonNote(
+            id: UUID(),
+            ownerId: profile.id,
+            personId: personId,
+            body: body,
+            createdAt: .now,
+            updatedAt: nil
+        )
+        personNoteRows.append(note)
+        recomputeDifferentiator(personId: personId)
+        return note
+    }
+
+    func updatePersonNote(id: UUID, body: String) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let idx = personNoteRows.firstIndex(where: { $0.id == id }) else { return }
+        personNoteRows[idx].body = body
+        personNoteRows[idx].updatedAt = .now
+        recomputeDifferentiator(personId: personNoteRows[idx].personId)
+    }
+
+    func deletePersonNote(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let note = personNoteRows.first(where: { $0.id == id }) else { return }
+        let personId = note.personId
+        personNoteRows.removeAll { $0.id == id }
+        recomputeDifferentiator(personId: personId)
+    }
+
+    /// Keep `Person.notes` equal to the oldest remaining note's body (the
+    /// duplicate-name differentiator), or nil when the person has no notes.
+    private func recomputeDifferentiator(personId: UUID) {
+        guard let pIdx = people.firstIndex(where: { $0.id == personId }) else { return }
+        let oldest = personNoteRows
+            .filter { $0.personId == personId }
+            .min(by: { $0.createdAt < $1.createdAt })
+        people[pIdx].notes = oldest?.body
+    }
+
     func deletePerson(id: UUID) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
-        // Mirror the DB cascade — removing a person also removes their logs.
+        // Mirror the DB cascade — removing a person also removes their logs and notes.
         people.removeAll { $0.id == id }
         conversations.removeAll { $0.personId == id }
+        personNoteRows.removeAll { $0.personId == id }
     }
 
     func recentConversationActivity(since: Date) async throws -> [ConversationActivity] {
