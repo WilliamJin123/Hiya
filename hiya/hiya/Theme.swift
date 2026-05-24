@@ -36,6 +36,13 @@ enum Theme {
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
+    /// Catch-ups ring uses the inverse sweep of Approaches, so the two modes
+    /// read as mirror images of each other.
+    static let accentGradientReversed = LinearGradient(
+        colors: [accentAmber, accentLavender],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
     // MARK: - Font PostScript names
     //
     // Verify in Font Book (open the TTF, ⌘I on the selected face). If a name

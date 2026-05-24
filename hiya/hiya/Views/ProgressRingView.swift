@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProgressRingView: View {
     let state: RingState
+    var gradient: LinearGradient = Theme.accentGradient
 
     @State private var burstToken = 0
     @State private var wasAtGoal = false
@@ -12,7 +13,7 @@ struct ProgressRingView: View {
 
             Circle()
                 .trim(from: 0, to: fillAmount)
-                .stroke(Theme.accentGradient, style: StrokeStyle(lineWidth: 18, lineCap: .round))
+                .stroke(gradient, style: StrokeStyle(lineWidth: 18, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.easeOut(duration: 0.4), value: fillAmount)
 
