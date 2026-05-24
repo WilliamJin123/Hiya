@@ -106,7 +106,7 @@ struct HomeView: View {
     private func pageContent(for pageMode: PersonStatus) -> some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
-                ProgressRingView(state: vm.ringState)
+                ProgressRingView(state: vm.ringState(for: pageMode))
                 streakLine(for: pageMode)
                 logButton(for: pageMode)
                 if pageMode == .warm {

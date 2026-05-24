@@ -22,10 +22,31 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        #expect(vm.count == 2)
+        #expect(vm.count(for: .cold) == 2)
+        #expect(vm.count(for: .warm) == 0)
         #expect(vm.goal == 10)
         #expect(vm.todaysLog.count == 2)
         #expect(vm.errorMessage == nil)
+    }
+
+    @Test func counts_areSeparateByValence() async throws {
+        let repo = MockHiyaRepository()
+        // One cold log (fresh person stays cold)...
+        let cold = try await repo.createPerson(name: "Cold")
+        try await repo.logConversation(personId: cold.id, valence: nil, note: nil, improvementNote: nil)
+        // ...and one warm log (flip status before logging so it snapshots warm).
+        let warm = try await repo.createPerson(name: "Warm")
+        if let idx = repo.people.firstIndex(where: { $0.id == warm.id }) {
+            repo.people[idx].status = .warm
+            repo.people[idx].statusChangedAt = .now
+        }
+        try await repo.logConversation(personId: warm.id, valence: nil, note: nil, improvementNote: nil)
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(vm.count(for: .cold) == 1)
+        #expect(vm.count(for: .warm) == 1)
     }
 
     @Test func count_dedupesByPersonId() async throws {
@@ -37,7 +58,7 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        #expect(vm.count == 1, "5 logs with the same person should count as 1 unique person")
+        #expect(vm.count(for: .cold) == 1, "5 logs with the same person should count as 1 unique person")
         #expect(vm.todaysLog.count == 5, "but every log row should still appear in todaysLog")
     }
 
@@ -59,7 +80,7 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        #expect(vm.count == 1, "yesterday's conversation should not count")
+        #expect(vm.count(for: .cold) == 1, "yesterday's conversation should not count")
     }
 
     @Test func refreshSetsErrorOnFailure() async {
@@ -78,7 +99,7 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        #expect(abs(vm.progress - 0.3) < 0.001)
+        #expect(abs(vm.progress(for: .cold) - 0.3) < 0.001)
     }
 
     @Test func progressCapsAt1WhenOverGoal() async throws {
@@ -90,7 +111,7 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        #expect(abs(vm.progress - 1.0) < 0.001)
+        #expect(abs(vm.progress(for: .cold) - 1.0) < 0.001)
     }
 
     @Test func ringState_isInProgress_whenBelowGoal() async throws {
@@ -99,12 +120,12 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        if case let .inProgress(count, goal, progress) = vm.ringState {
+        if case let .inProgress(count, goal, progress) = vm.ringState(for: .cold) {
             #expect(count == 3)
             #expect(goal == 10)
             #expect(abs(progress - 0.3) < 0.001)
         } else {
-            Issue.record("expected .inProgress, got \(vm.ringState)")
+            Issue.record("expected .inProgress, got \(vm.ringState(for: .cold))")
         }
     }
 
@@ -117,10 +138,10 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        if case let .atGoal(goal) = vm.ringState {
+        if case let .atGoal(goal) = vm.ringState(for: .cold) {
             #expect(goal == 5)
         } else {
-            Issue.record("expected .atGoal, got \(vm.ringState)")
+            Issue.record("expected .atGoal, got \(vm.ringState(for: .cold))")
         }
     }
 
@@ -133,12 +154,12 @@ struct HomeViewModelTests {
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        if case let .overload(count, goal, extra) = vm.ringState {
+        if case let .overload(count, goal, extra) = vm.ringState(for: .cold) {
             #expect(count == 5)
             #expect(goal == 3)
             #expect(extra == 2)
         } else {
-            Issue.record("expected .overload, got \(vm.ringState)")
+            Issue.record("expected .overload, got \(vm.ringState(for: .cold))")
         }
     }
 
