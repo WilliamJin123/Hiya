@@ -3,12 +3,14 @@ import SwiftUI
 struct HomeView: View {
     let repo: HiyaRepository
     @State private var vm: HomeViewModel
+    @State private var challengesVM: ChallengesViewModel
     @State private var sheetMode: LogSheetMode?
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
 
     init(repo: HiyaRepository) {
         self.repo = repo
         _vm = State(initialValue: HomeViewModel(repo: repo))
+        _challengesVM = State(initialValue: ChallengesViewModel(repo: repo))
     }
 
     var body: some View {
@@ -61,9 +63,9 @@ struct HomeView: View {
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .task { await vm.refresh() }
-            .refreshable { await vm.refresh() }
-            .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh() } }) { sheet in
+            .task { await vm.refresh(); await challengesVM.load() }
+            .refreshable { await vm.refresh(); await challengesVM.load() }
+            .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load() } }) { sheet in
                 switch sheet {
                 case .create(let p):
                     LogSheetView(repo: repo, preselectedPerson: p)
@@ -120,6 +122,7 @@ struct HomeView: View {
                 )
                 streakLine(for: pageMode)
                 logButton(for: pageMode)
+                challengeSection(for: pageMode)
                 if pageMode == .warm {
                     followUpSection
                 }
@@ -176,6 +179,58 @@ struct HomeView: View {
     private func filteredLog(for pageMode: PersonStatus) -> [LoggedConversation] {
         let wantCold = (pageMode == .cold)
         return vm.todaysLog.filter { $0.wasColdAtTime == wantCold }
+    }
+
+    @ViewBuilder
+    private func challengeSection(for pageMode: PersonStatus) -> some View {
+        let items = challengesVM.activeChallenges(for: pageMode)
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("CHALLENGE")
+                    .font(Theme.FontScale.bodyHeading())
+                    .tracking(1.2)
+                    .foregroundColor(Theme.textSecondary)
+                    .padding(.bottom, Theme.Spacing.sm)
+                ForEach(items) { challenge in
+                    NavigationLink {
+                        ChallengesView(repo: repo)
+                    } label: {
+                        challengeRow(challenge)
+                    }
+                    .buttonStyle(.plain)
+                    if challenge.id != items.last?.id {
+                        Theme.divider.frame(height: 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func challengeRow(_ challenge: Challenge) -> some View {
+        let accent = challenge.track == .warm ? Theme.accentLavender : Theme.accentAmber
+        return HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "target")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(challenge.title)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                Text(challenge.prompt)
+                    .font(Theme.FontScale.secondary())
+                    .foregroundColor(Theme.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if let target = challenge.targetCount {
+                Text("\(challengesVM.progress(for: challenge))/\(target)")
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.8)
+                    .foregroundColor(accent)
+            }
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 
     @ViewBuilder
