@@ -26,6 +26,7 @@ struct LogSheetView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                         personSection
+                        whenSection
                         valenceSection
                         improvementSection
                         noteSection
@@ -113,6 +114,24 @@ struct LogSheetView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var whenSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("WHEN")
+            DatePicker(
+                "",
+                selection: $vm.occurredAt,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(Theme.accentLavender)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
     }
 
