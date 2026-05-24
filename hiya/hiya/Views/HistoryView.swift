@@ -157,7 +157,7 @@ struct HistoryView: View {
     private var emptyState: some View {
         VStack(spacing: Theme.Spacing.sm) {
             Spacer()
-            Text("Nothing here yet.\nYesterday's logs will show up tomorrow.")
+            Text("Nothing here yet.\nLog a conversation and it'll show up here.")
                 .multilineTextAlignment(.center)
                 .font(Theme.FontScale.secondary())
                 .foregroundColor(Theme.textSecondary)

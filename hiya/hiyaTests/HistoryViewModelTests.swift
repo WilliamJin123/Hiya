@@ -5,16 +5,16 @@ import Foundation
 @MainActor
 struct HistoryViewModelTests {
 
-    @Test func load_excludesToday() async throws {
+    @Test func load_includesToday() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")
-        // Today's log — should be excluded from history
         try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
 
         let vm = HistoryViewModel(repo: repo)
         await vm.load()
 
-        #expect(vm.sections.isEmpty, "today's logs do not appear in history (they're on Home)")
+        let today = Calendar.current.startOfDay(for: .now)
+        #expect(vm.sections.contains { $0.date == today }, "today's logs appear in history in real time")
     }
 
     @Test func load_groupsConversationsByDay() async throws {

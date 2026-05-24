@@ -23,12 +23,14 @@ final class HistoryViewModel {
         defer { isLoading = false }
         do {
             let todayStart = Calendar.current.startOfDay(for: .now)
+            // Include today: window runs through the end of today (start of tomorrow).
+            let windowEnd = Calendar.current.date(byAdding: .day, value: 1, to: todayStart) ?? todayStart
             let windowStart = Calendar.current.date(
                 byAdding: .day,
                 value: -lookbackDays,
                 to: todayStart
             ) ?? todayStart
-            let convs = try await repo.conversations(start: windowStart, end: todayStart)
+            let convs = try await repo.conversations(start: windowStart, end: windowEnd)
             sections = Self.groupByDay(convs)
         } catch {
             errorMessage = error.localizedDescription
