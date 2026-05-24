@@ -65,7 +65,7 @@ struct LogSheetView: View {
     @ViewBuilder
     private var personSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            sectionHeader("PERSON")
+            sectionHeader("PEOPLE")
             if vm.editing != nil {
                 Text(vm.searchText)
                     .font(Theme.FontScale.body())
@@ -75,24 +75,31 @@ struct LogSheetView: View {
                     .background(Theme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
             } else {
-                TextField("Name", text: $vm.searchText)
+                if !vm.targets.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Theme.Spacing.sm) {
+                            ForEach(vm.targets) { target in
+                                personChip(target)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                TextField("Add a person", text: $vm.searchText)
                     .font(Theme.FontScale.body())
                     .foregroundColor(Theme.textPrimary)
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .onSubmit { if vm.canAddTypedName { vm.addNew(vm.searchText) } }
                     .padding(12)
                     .background(Theme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-                    .onChange(of: vm.searchText) { _, _ in
-                        if let selected = vm.selectedPerson, selected.name != vm.searchText {
-                            vm.clearSelection()
-                        }
-                    }
-                if !vm.filteredPeople.isEmpty && vm.selectedPerson == nil {
+                if !vm.filteredPeople.isEmpty || vm.canAddTypedName {
                     VStack(spacing: Theme.Spacing.xs) {
                         ForEach(vm.filteredPeople) { person in
                             Button {
-                                vm.select(person)
+                                vm.addExisting(person)
                             } label: {
                                 HStack {
                                     Text(person.name)
@@ -111,10 +118,48 @@ struct LogSheetView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        if vm.canAddTypedName {
+                            Button {
+                                vm.addNew(vm.searchText)
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(Theme.accentAmber)
+                                    Text("Add \u{201C}\(vm.trimmedSearch)\u{201D}")
+                                        .font(Theme.FontScale.body())
+                                        .foregroundColor(Theme.textPrimary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(Theme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private func personChip(_ target: LogTarget) -> some View {
+        HStack(spacing: 6) {
+            Text(target.displayName)
+                .font(Theme.FontScale.secondary())
+                .foregroundColor(Theme.textPrimary)
+            Button {
+                vm.removeTarget(target)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(Theme.accentLavender.opacity(0.18)))
     }
 
     private var whenSection: some View {

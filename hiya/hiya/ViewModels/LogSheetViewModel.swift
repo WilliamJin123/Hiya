@@ -8,7 +8,7 @@ final class LogSheetViewModel {
 
     private(set) var allPeople: [Person] = []
     var searchText: String = ""
-    private(set) var selectedPerson: Person?
+    private(set) var targets: [LogTarget] = []
     var valence: Conversation.Valence?
     var note: String = ""
     var improvementNote: String = ""
@@ -25,15 +25,27 @@ final class LogSheetViewModel {
     }
 
     var filteredPeople: [Person] {
+        let chosen = Set(targets.compactMap { target -> UUID? in
+            if case .existing(let p) = target { return p.id }
+            return nil
+        })
+        let available = allPeople.filter { !chosen.contains($0.id) }
         let q = trimmedSearch.lowercased()
-        guard !q.isEmpty else { return allPeople }
-        return allPeople.filter { $0.name.lowercased().contains(q) }
+        guard !q.isEmpty else { return available }
+        return available.filter { $0.name.lowercased().contains(q) }
+    }
+
+    /// Whether the typed text should offer a "create new person" row — only
+    /// when it's non-empty and doesn't exactly match an existing person.
+    var canAddTypedName: Bool {
+        let q = trimmedSearch
+        guard !q.isEmpty else { return false }
+        return !allPeople.contains { $0.name.lowercased() == q.lowercased() }
     }
 
     var canSave: Bool {
         if editing != nil { return true }
-        if selectedPerson != nil { return true }
-        return !trimmedSearch.isEmpty
+        return !targets.isEmpty || !trimmedSearch.isEmpty
     }
 
     init(
@@ -50,8 +62,7 @@ final class LogSheetViewModel {
             improvementNote = editing.improvementNote ?? ""
             occurredAt = editing.occurredAt
         } else if let preselected = preselectedPerson {
-            selectedPerson = preselected
-            searchText = preselected.name
+            targets = [.existing(preselected)]
         }
     }
 
@@ -66,13 +77,24 @@ final class LogSheetViewModel {
         }
     }
 
-    func select(_ person: Person) {
-        selectedPerson = person
-        searchText = person.name
+    func addExisting(_ person: Person) {
+        let target = LogTarget.existing(person)
+        guard !targets.contains(where: { $0.id == target.id }) else { return }
+        targets.append(target)
+        searchText = ""
     }
 
-    func clearSelection() {
-        selectedPerson = nil
+    func addNew(_ rawName: String) {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        let target = LogTarget.new(name)
+        guard !targets.contains(where: { $0.id == target.id }) else { return }
+        targets.append(target)
+        searchText = ""
+    }
+
+    func removeTarget(_ target: LogTarget) {
+        targets.removeAll { $0.id == target.id }
     }
 
     /// Returns true if save succeeded.
@@ -96,20 +118,43 @@ final class LogSheetViewModel {
                     improvementNote: improvementToSend
                 )
             } else {
-                let personId: UUID
-                if let selected = selectedPerson {
-                    personId = selected.id
-                } else {
-                    let new = try await repo.createPerson(name: trimmedSearch)
-                    personId = new.id
+                // Fold any leftover typed text into a target so the fast
+                // "type one name and save" path still works.
+                var finalTargets = targets
+                let pending = trimmedSearch
+                if !pending.isEmpty {
+                    if let match = allPeople.first(where: { $0.name.lowercased() == pending.lowercased() }) {
+                        let t = LogTarget.existing(match)
+                        if !finalTargets.contains(where: { $0.id == t.id }) { finalTargets.append(t) }
+                    } else {
+                        let t = LogTarget.new(pending)
+                        if !finalTargets.contains(where: { $0.id == t.id }) { finalTargets.append(t) }
+                    }
                 }
-                try await repo.logConversation(
-                    personId: personId,
-                    occurredAt: occurredAt,
-                    valence: valence,
-                    note: noteToSend,
-                    improvementNote: improvementToSend
-                )
+                guard !finalTargets.isEmpty else { return false }
+
+                // Resolve each target to a person id (creating new people).
+                var personIds: [UUID] = []
+                for target in finalTargets {
+                    switch target {
+                    case .existing(let person):
+                        personIds.append(person.id)
+                    case .new(let name):
+                        let created = try await repo.createPerson(name: name)
+                        personIds.append(created.id)
+                    }
+                }
+
+                // One log per person, all sharing the same time/valence/notes.
+                for personId in personIds {
+                    try await repo.logConversation(
+                        personId: personId,
+                        occurredAt: occurredAt,
+                        valence: valence,
+                        note: noteToSend,
+                        improvementNote: improvementToSend
+                    )
+                }
             }
             return true
         } catch {
@@ -130,6 +175,25 @@ final class LogSheetViewModel {
         } catch {
             errorMessage = error.localizedDescription
             return false
+        }
+    }
+}
+
+enum LogTarget: Identifiable, Equatable {
+    case existing(Person)
+    case new(String)
+
+    var id: String {
+        switch self {
+        case .existing(let p): "existing-\(p.id.uuidString)"
+        case .new(let name):   "new-\(name.lowercased())"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .existing(let p): p.name
+        case .new(let name):   name
         }
     }
 }

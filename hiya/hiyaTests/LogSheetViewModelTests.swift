@@ -5,6 +5,45 @@ import Foundation
 @MainActor
 struct LogSheetViewModelTests {
 
+    @Test func save_createsOneLogPerTarget_sharingOccurredAt() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        let vm = LogSheetViewModel(repo: repo)
+        await vm.load()
+        let when = Date(timeIntervalSince1970: 1_700_000_000)
+        vm.occurredAt = when
+        vm.addExisting(alex)
+        vm.addNew("Bea")
+
+        let ok = await vm.save()
+
+        #expect(ok)
+        #expect(repo.conversations.count == 2, "one log per target")
+        #expect(repo.conversations.allSatisfy { abs($0.occurredAt.timeIntervalSince(when)) < 0.001 })
+        #expect(repo.people.contains { $0.name == "Bea" }, "a new target is created as a person")
+    }
+
+    @Test func addExisting_ignoresDuplicates() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        let vm = LogSheetViewModel(repo: repo)
+        await vm.load()
+        vm.addExisting(alex)
+        vm.addExisting(alex)
+        #expect(vm.targets.count == 1)
+    }
+
+    @Test func save_foldsTypedNameIntoTarget() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo)
+        await vm.load()
+        vm.searchText = "Cara"   // typed but not explicitly added
+        let ok = await vm.save()
+        #expect(ok)
+        #expect(repo.conversations.count == 1)
+        #expect(repo.people.contains { $0.name == "Cara" })
+    }
+
     @Test func editing_initializesOccurredAtFromEntry() async {
         let when = Date(timeIntervalSince1970: 1_700_000_000)
         let entry = LoggedConversation(
@@ -60,7 +99,7 @@ struct LogSheetViewModelTests {
         let alex = try await repo.createPerson(name: "Alex")
         let vm = LogSheetViewModel(repo: repo)
         await vm.load()
-        vm.select(alex)
+        vm.addExisting(alex)
         #expect(vm.canSave == true)
     }
 
@@ -77,7 +116,7 @@ struct LogSheetViewModelTests {
         let alex = try await repo.createPerson(name: "Alex")
         let vm = LogSheetViewModel(repo: repo)
         await vm.load()
-        vm.select(alex)
+        vm.addExisting(alex)
         vm.valence = .positive
         vm.note = "lunch"
 
@@ -121,7 +160,7 @@ struct LogSheetViewModelTests {
         let alex = try await repo.createPerson(name: "Alex")
         let vm = LogSheetViewModel(repo: repo)
         await vm.load()
-        vm.select(alex)
+        vm.addExisting(alex)
         repo.errorToThrow = NSError(domain: "test", code: 1)
 
         let success = await vm.save()
@@ -130,7 +169,7 @@ struct LogSheetViewModelTests {
         #expect(vm.errorMessage != nil)
     }
 
-    @Test func init_withPreselectedPerson_setsSelectionAndSearchText() async {
+    @Test func init_withPreselectedPerson_seedsTarget() async {
         let person = Person(
             id: UUID(),
             ownerId: UUID(),
@@ -143,8 +182,8 @@ struct LogSheetViewModelTests {
         let repo = MockHiyaRepository()
         let vm = LogSheetViewModel(repo: repo, preselectedPerson: person)
 
-        #expect(vm.selectedPerson?.id == person.id)
-        #expect(vm.searchText == "Alex")
+        #expect(vm.targets.count == 1)
+        #expect(vm.targets.first?.id == LogTarget.existing(person).id)
         #expect(vm.canSave == true)
         #expect(vm.editing == nil)
     }
