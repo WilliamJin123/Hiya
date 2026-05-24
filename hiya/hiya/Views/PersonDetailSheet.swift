@@ -4,15 +4,21 @@ struct PersonDetailSheet: View {
     let repo: HiyaRepository
     let person: Person
 
-    @State private var notes: String
-    @State private var isSaving = false
-    @State private var errorMessage: String?
+    @State private var vm: PersonDetailViewModel
+    @State private var draft = ""
+    @State private var editingNote: PersonNote?
+    @State private var editText = ""
+    @State private var isMoving = false
     @Environment(\.dismiss) private var dismiss
 
     init(repo: HiyaRepository, person: Person) {
         self.repo = repo
         self.person = person
-        _notes = State(initialValue: person.notes ?? "")
+        _vm = State(initialValue: PersonDetailViewModel(repo: repo, person: person))
+    }
+
+    private var canAdd: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -26,12 +32,11 @@ struct PersonDetailSheet: View {
                         if person.status == .cold {
                             moveToWarmButton
                         }
-                        if let error = errorMessage {
+                        if let error = vm.errorMessage {
                             Text(error)
                                 .font(Theme.FontScale.secondary())
                                 .foregroundColor(Theme.valenceNegative)
                         }
-                        saveButton
                     }
                     .padding(Theme.Spacing.md)
                 }
@@ -52,6 +57,21 @@ struct PersonDetailSheet: View {
             .toolbarBackground(.hidden, for: .navigationBar)
         }
         .preferredColorScheme(.dark)
+        .task { await vm.load() }
+        .alert("Edit note", isPresented: Binding(
+            get: { editingNote != nil },
+            set: { if !$0 { editingNote = nil } }
+        )) {
+            TextField("Note", text: $editText, axis: .vertical)
+            Button("Save") {
+                if let n = editingNote {
+                    let t = editText
+                    Task { await vm.edit(n, to: t) }
+                }
+                editingNote = nil
+            }
+            Button("Cancel", role: .cancel) { editingNote = nil }
+        }
     }
 
     private var header: some View {
@@ -77,35 +97,74 @@ struct PersonDetailSheet: View {
                 .font(Theme.FontScale.bodyHeading())
                 .tracking(1.2)
                 .foregroundColor(Theme.textSecondary)
-            TextField(
-                "What should you remember about \(person.name)?",
-                text: $notes,
-                axis: .vertical
-            )
-            .font(Theme.FontScale.body())
-            .foregroundColor(Theme.textPrimary)
-            .lineLimit(3...12)
-            .padding(12)
-            .background(Theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+
+            addRow
+
+            if vm.notes.isEmpty {
+                Text("No notes yet. Jot down what you learn about \(person.name) — each note is dated.")
+                    .font(Theme.FontScale.secondary())
+                    .foregroundColor(Theme.textSecondary)
+                    .padding(.vertical, 4)
+            } else {
+                ForEach(vm.notes) { note in
+                    noteRow(note)
+                }
+            }
         }
     }
 
-    private var saveButton: some View {
-        Button {
-            Task { await save() }
-        } label: {
-            Text("Save")
+    private var addRow: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            TextField("Add a note…", text: $draft, axis: .vertical)
                 .font(Theme.FontScale.body())
-                .foregroundColor(Theme.textOnAccent)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Theme.accentLavender)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
-                .shadow(color: Theme.accentLavender.opacity(0.3), radius: 14, x: 0, y: 8)
+                .foregroundColor(Theme.textPrimary)
+                .lineLimit(1...4)
+                .padding(12)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+            Button {
+                let t = draft
+                draft = ""
+                Task { await vm.add(t) }
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(canAdd ? Theme.accentLavender : Theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canAdd || vm.isWorking)
         }
-        .buttonStyle(.plain)
-        .disabled(isSaving)
+    }
+
+    private func noteRow(_ note: PersonNote) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(dateLine(note))
+                .font(Theme.FontScale.micro())
+                .tracking(0.8)
+                .foregroundColor(Theme.textSecondary)
+            Text(note.body)
+                .font(Theme.FontScale.body())
+                .foregroundColor(Theme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            editText = note.body
+            editingNote = note
+        }
+        .contextMenu {
+            Button {
+                editText = note.body
+                editingNote = note
+            } label: { Label("Edit", systemImage: "pencil") }
+            Button(role: .destructive) {
+                Task { await vm.delete(note) }
+            } label: { Label("Delete", systemImage: "trash") }
+        }
     }
 
     private var moveToWarmButton: some View {
@@ -124,39 +183,29 @@ struct PersonDetailSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         }
         .buttonStyle(.plain)
-        .disabled(isSaving)
-    }
-
-    private func save() async {
-        isSaving = true
-        errorMessage = nil
-        defer { isSaving = false }
-        let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        let toSend = trimmed.isEmpty ? nil : trimmed
-        do {
-            try await repo.updatePersonNotes(id: person.id, notes: toSend)
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        .disabled(isMoving)
     }
 
     private func moveToWarm() async {
-        isSaving = true
-        errorMessage = nil
-        defer { isSaving = false }
+        isMoving = true
+        defer { isMoving = false }
         do {
-            // Persist any note edit too, so moving doesn't discard it.
-            let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-            try await repo.updatePersonNotes(id: person.id, notes: trimmed.isEmpty ? nil : trimmed)
             try await repo.updatePersonStatus(id: person.id, status: .warm)
             // Someone you already knew was never a cold approach — reclassify
             // their logs so they leave the Approaches tally (today and history).
             try await repo.reclassifyConversations(personId: person.id, wasCold: false)
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            vm.errorMessage = error.localizedDescription
         }
+    }
+
+    private func dateLine(_ note: PersonNote) -> String {
+        let learned = "Learned " + note.createdAt.formatted(date: .abbreviated, time: .omitted)
+        if let edited = note.updatedAt {
+            return learned + " · edited " + edited.formatted(date: .abbreviated, time: .omitted)
+        }
+        return learned
     }
 
     private func relative(_ date: Date) -> String {
