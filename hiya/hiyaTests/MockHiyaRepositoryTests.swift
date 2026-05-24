@@ -12,6 +12,24 @@ struct MockHiyaRepositoryTests {
         #expect(alex.statusChangedAt == nil)
     }
 
+    @Test func challenges_startListCompleteAbandon() async throws {
+        let repo = MockHiyaRepository()
+        let draft = ChallengeDraft(title: "Test", prompt: "p", track: .cold, targetCount: 2, durationDays: 7)
+
+        let started = try await repo.startChallenge(draft)
+        var all = try await repo.challenges()
+        #expect(all.count == 1)
+        #expect(started.completedAt == nil)
+
+        try await repo.completeChallenge(id: started.id)
+        all = try await repo.challenges()
+        #expect(all.first?.completedAt != nil)
+
+        try await repo.abandonChallenge(id: started.id)
+        all = try await repo.challenges()
+        #expect(all.isEmpty)
+    }
+
     @Test func createPerson_storesNotes() async throws {
         let repo = MockHiyaRepository()
         let p = try await repo.createPerson(name: "Alex", status: .cold, notes: "climbing gym")

@@ -25,6 +25,10 @@ protocol HiyaRepository: Sendable {
     func graduatePastDuePeople(beforeLog: Date) async throws
     func recentConversationActivity(since: Date) async throws -> [ConversationActivity]
     func followUpSuggestions(thresholdDays: Int, limit: Int) async throws -> [Person]
+    func challenges() async throws -> [Challenge]
+    func startChallenge(_ draft: ChallengeDraft) async throws -> Challenge
+    func completeChallenge(id: UUID) async throws
+    func abandonChallenge(id: UUID) async throws
 }
 
 struct LoggedConversation: Identifiable, Sendable, Equatable {
@@ -271,6 +275,62 @@ final class LiveHiyaRepository: HiyaRepository {
             .limit(limit)
             .execute()
             .value
+    }
+
+    func challenges() async throws -> [Challenge] {
+        try await client
+            .from("challenges")
+            .select()
+            .order("started_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func startChallenge(_ draft: ChallengeDraft) async throws -> Challenge {
+        let userId = try await client.auth.user().id
+        struct Insert: Encodable {
+            let owner_id: UUID
+            let title: String
+            let prompt: String
+            let track: String
+            let target_count: Int?
+            let duration_days: Int?
+            let source: String
+            let template_slug: String?
+        }
+        return try await client
+            .from("challenges")
+            .insert(Insert(
+                owner_id: userId,
+                title: draft.title,
+                prompt: draft.prompt,
+                track: draft.track.rawValue,
+                target_count: draft.targetCount,
+                duration_days: draft.durationDays,
+                source: draft.source.rawValue,
+                template_slug: draft.templateSlug
+            ))
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func completeChallenge(id: UUID) async throws {
+        struct Update: Encodable { let completed_at: String }
+        try await client
+            .from("challenges")
+            .update(Update(completed_at: Date.now.iso8601String))
+            .eq("id", value: id)
+            .execute()
+    }
+
+    func abandonChallenge(id: UUID) async throws {
+        try await client
+            .from("challenges")
+            .delete()
+            .eq("id", value: id)
+            .execute()
     }
 }
 

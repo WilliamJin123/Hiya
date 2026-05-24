@@ -5,6 +5,7 @@ final class MockHiyaRepository: HiyaRepository {
     var profile: Profile
     var people: [Person]
     var conversations: [Conversation]
+    var challengeRows: [Challenge] = []
 
     var errorToThrow: Error?
 
@@ -155,6 +156,42 @@ final class MockHiyaRepository: HiyaRepository {
                 .sorted { $0.lastLoggedAt < $1.lastLoggedAt }
                 .prefix(limit)
         )
+    }
+
+    func challenges() async throws -> [Challenge] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        return challengeRows.sorted { $0.startedAt > $1.startedAt }
+    }
+
+    func startChallenge(_ draft: ChallengeDraft) async throws -> Challenge {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        let c = Challenge(
+            id: UUID(),
+            ownerId: profile.id,
+            title: draft.title,
+            prompt: draft.prompt,
+            track: draft.track,
+            targetCount: draft.targetCount,
+            durationDays: draft.durationDays,
+            source: draft.source,
+            templateSlug: draft.templateSlug,
+            startedAt: .now,
+            completedAt: nil
+        )
+        challengeRows.append(c)
+        return c
+    }
+
+    func completeChallenge(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        if let i = challengeRows.firstIndex(where: { $0.id == id }) {
+            challengeRows[i].completedAt = .now
+        }
+    }
+
+    func abandonChallenge(id: UUID) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        challengeRows.removeAll { $0.id == id }
     }
 }
 
