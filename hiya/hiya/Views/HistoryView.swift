@@ -6,7 +6,8 @@ struct HistoryView: View {
     @State private var editing: LoggedConversation?
     @State private var viewMode: ViewMode = .list
     @State private var displayedMonth: Date = .now
-    @State private var scrollTarget: Date?
+    /// nil = show every day grouped; a date = show only that day's logs.
+    @State private var selectedDate: Date?
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -55,12 +56,16 @@ struct HistoryView: View {
 
     @ViewBuilder
     private var listContent: some View {
-        if vm.sections.isEmpty {
-            emptyState
-        } else {
-            ScrollViewReader { proxy in
+        VStack(spacing: Theme.Spacing.sm) {
+            listDateBar
+            let sections = displayedSections
+            if sections.isEmpty {
+                emptyState(message: vm.sections.isEmpty
+                    ? "Nothing here yet.\nLog a conversation and it'll show up here."
+                    : "No logs on this day.")
+            } else {
                 List {
-                    ForEach(vm.sections) { section in
+                    ForEach(sections) { section in
                         Section {
                             ForEach(section.entries) { entry in
                                 Button {
@@ -75,19 +80,48 @@ struct HistoryView: View {
                         } header: {
                             DayHeader(section: section)
                         }
-                        .id(section.date)
                     }
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .onChange(of: scrollTarget) { _, target in
-                    if let target {
-                        withAnimation { proxy.scrollTo(target, anchor: .top) }
-                        scrollTarget = nil
-                    }
-                }
             }
         }
+    }
+
+    /// Sections to show: all of them, or just the selected day.
+    private var displayedSections: [DaySection] {
+        guard let selectedDate else { return vm.sections }
+        return vm.sections.filter { $0.date == selectedDate }
+    }
+
+    private var listDateBar: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "calendar")
+                .font(.system(size: 14))
+                .foregroundColor(Theme.textSecondary)
+            DatePicker(
+                "",
+                selection: Binding(
+                    get: { selectedDate ?? Calendar.current.startOfDay(for: .now) },
+                    set: { selectedDate = Calendar.current.startOfDay(for: $0) }
+                ),
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(Theme.accentLavender)
+            Spacer()
+            if selectedDate != nil {
+                Button("All days") {
+                    withAnimation { selectedDate = nil }
+                }
+                .font(Theme.FontScale.secondary())
+                .foregroundColor(Theme.accentLavender)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.top, Theme.Spacing.xs)
     }
 
     @ViewBuilder
@@ -98,9 +132,9 @@ struct HistoryView: View {
                 month: displayedMonth,
                 sections: vm.sections,
                 onDayTap: { date in
-                    // Switch to list view + scroll to that day's section.
+                    // Switch to the list, filtered to just that day.
+                    selectedDate = Calendar.current.startOfDay(for: date)
                     viewMode = .list
-                    scrollTarget = Calendar.current.startOfDay(for: date)
                 }
             )
             .padding(.horizontal, Theme.Spacing.md)
@@ -154,15 +188,16 @@ struct HistoryView: View {
         }
     }
 
-    private var emptyState: some View {
+    private func emptyState(message: String) -> some View {
         VStack(spacing: Theme.Spacing.sm) {
             Spacer()
-            Text("Nothing here yet.\nLog a conversation and it'll show up here.")
+            Text(message)
                 .multilineTextAlignment(.center)
                 .font(Theme.FontScale.secondary())
                 .foregroundColor(Theme.textSecondary)
             Spacer()
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, Theme.Spacing.md)
     }
 
@@ -305,10 +340,18 @@ private struct DayCell: View {
             Text(dayNumber)
                 .font(Theme.FontScale.body())
                 .foregroundColor(section != nil ? Theme.textPrimary : Theme.textSecondary.opacity(0.5))
-            if let s = section, s.totalCount > 1 {
-                Text("\(s.totalCount)")
-                    .font(Theme.FontScale.micro())
-                    .foregroundColor(Theme.textSecondary)
+            if let s = section {
+                HStack(spacing: 4) {
+                    if s.coldCount > 0 {
+                        Text("\(s.coldCount)")
+                            .foregroundColor(Theme.accentAmber)
+                    }
+                    if (s.totalCount - s.coldCount) > 0 {
+                        Text("\(s.totalCount - s.coldCount)")
+                            .foregroundColor(Theme.accentLavender)
+                    }
+                }
+                .font(Theme.FontScale.micro())
             }
         }
         .frame(maxWidth: .infinity, minHeight: 48)
