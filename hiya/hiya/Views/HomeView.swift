@@ -45,6 +45,14 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
+                        ChallengesView(repo: repo)
+                    } label: {
+                        Image(systemName: "target")
+                            .foregroundColor(Theme.accentLavender)
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
                         PeopleView(repo: repo)
                     } label: {
                         Image(systemName: "person.2.fill")
