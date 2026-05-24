@@ -108,7 +108,7 @@ struct HomeView: View {
             VStack(spacing: Theme.Spacing.lg) {
                 ProgressRingView(
                     state: vm.ringState(for: pageMode),
-                    gradient: pageMode == .warm ? Theme.accentGradientReversed : Theme.accentGradient
+                    gradient: pageMode == .cold ? Theme.accentGradientReversed : Theme.accentGradient
                 )
                 streakLine(for: pageMode)
                 logButton(for: pageMode)
