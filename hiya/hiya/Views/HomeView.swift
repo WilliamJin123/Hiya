@@ -26,6 +26,7 @@ struct HomeView: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(.easeInOut(duration: 0.22), value: mode)
+                    .onChange(of: mode) { _, _ in Haptics.selection() }
                 }
             }
             .toolbar {

@@ -69,7 +69,7 @@ struct HistoryView: View {
                                     EntryRow(entry: entry)
                                 }
                                 .buttonStyle(.plain)
-                                .listRowBackground(Theme.surface)
+                                .listRowBackground(rowBackground(for: entry))
                                 .listRowSeparatorTint(Theme.divider)
                             }
                         } header: {
@@ -185,6 +185,21 @@ struct HistoryView: View {
         f.dateFormat = "MMMM yyyy"
         return f.string(from: date)
     }
+
+    /// Surface plus a faint valence wash, so a day's rows read warm/rough at a
+    /// glance without reintroducing a hard color stripe. Nil valence stays plain.
+    private func rowBackground(for entry: LoggedConversation) -> some View {
+        let tint: Color = switch entry.valence {
+            case .positive: Theme.valencePositive
+            case .neutral:  Theme.valenceNeutral
+            case .negative: Theme.valenceNegative
+            case .none:     .clear
+        }
+        return ZStack {
+            Theme.surface
+            tint.opacity(0.10)
+        }
+    }
 }
 
 enum ViewMode: Hashable { case list, calendar }
@@ -256,6 +271,7 @@ private struct CalendarMonthGrid: View {
 private struct DayCell: View {
     let date: Date
     let section: DaySection?
+    @State private var pulse = false
 
     private var isToday: Bool {
         Calendar.current.isDate(date, inSameDayAs: .now)
@@ -304,6 +320,16 @@ private struct DayCell: View {
             RoundedRectangle(cornerRadius: Theme.Radius.sm)
                 .stroke(borderColor, lineWidth: 1.5)
         )
+        .shadow(
+            color: isToday ? Theme.accentLavender.opacity(pulse ? 0.55 : 0.0) : .clear,
+            radius: pulse ? 9 : 3
+        )
+        .onAppear {
+            guard isToday else { return }
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 }
 

@@ -32,6 +32,34 @@ struct PeopleViewModelTests {
         #expect(vm.recurring.map(\.name) == ["Alex"])
     }
 
+    @Test func activityStrip_marksLoggedDaysOldestToNewest() {
+        let cal = Calendar.current
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let pid = UUID()
+        let other = UUID()
+        func conv(_ personId: UUID, daysAgo: Int) -> LoggedConversation {
+            let d = cal.date(byAdding: .day, value: -daysAgo, to: now)!
+            return LoggedConversation(
+                id: UUID(), personId: personId, personName: "X",
+                occurredAt: d, valence: nil, note: nil, improvementNote: nil
+            )
+        }
+
+        let strip = PeopleViewModel.activityStrip(
+            personId: pid,
+            conversations: [conv(pid, daysAgo: 0), conv(pid, daysAgo: 3), conv(other, daysAgo: 1)],
+            days: 7,
+            now: now,
+            calendar: cal
+        )
+
+        #expect(strip.count == 7)
+        #expect(strip[6] == true)   // today
+        #expect(strip[3] == true)   // 3 days ago
+        #expect(strip[5] == false)  // 1 day ago belongs to a different person
+        #expect(strip[0] == false)  // 6 days ago, no log
+    }
+
     @Test func updateNotes_persistsAndReloads() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")

@@ -178,7 +178,10 @@ struct LogSheetView: View {
     private var saveButton: some View {
         Button {
             Task {
-                if await vm.save() { dismiss() }
+                if await vm.save() {
+                    Haptics.success()
+                    dismiss()
+                }
             }
         } label: {
             Text(vm.editing == nil ? "Save" : "Update")

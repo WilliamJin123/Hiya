@@ -3,6 +3,9 @@ import SwiftUI
 struct ProgressRingView: View {
     let state: RingState
 
+    @State private var burstToken = 0
+    @State private var wasAtGoal = false
+
     var body: some View {
         ZStack {
             Circle().stroke(Theme.ringTrack, lineWidth: 18)
@@ -20,6 +23,27 @@ struct ProgressRingView: View {
         }
         .frame(width: 240, height: 240)
         .shadow(color: glowColor, radius: Theme.Glow.blur, x: 0, y: 0)
+        .overlay {
+            if isAtGoal {
+                GoalBurst(color: Theme.accentAmber)
+                    .id(burstToken)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onChange(of: isAtGoal) { _, met in
+            if met && !wasAtGoal {
+                burstToken += 1
+                Haptics.success()
+            }
+            wasAtGoal = met
+        }
+    }
+
+    private var isAtGoal: Bool {
+        switch state {
+        case .inProgress: false
+        case .atGoal, .overload: true
+        }
     }
 
     private var fillAmount: Double {
@@ -71,6 +95,37 @@ struct ProgressRingView: View {
                     .tracking(0.8)
                     .foregroundColor(Theme.accentAmber)
             }
+        }
+    }
+}
+
+/// One-shot celebration that plays when the ring crosses into its goal state:
+/// an expanding ring "ping" plus a burst of spokes radiating outward. Re-mounts
+/// (and replays) whenever its `.id` changes in the parent.
+private struct GoalBurst: View {
+    let color: Color
+    @State private var animate = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(color, lineWidth: 3)
+                .frame(width: 240, height: 240)
+                .scaleEffect(animate ? 1.3 : 0.92)
+                .opacity(animate ? 0 : 0.7)
+
+            ForEach(0..<10, id: \.self) { i in
+                Capsule()
+                    .fill(color)
+                    .frame(width: 4, height: 16)
+                    .offset(y: animate ? -154 : -116)
+                    .opacity(animate ? 0 : 0.9)
+                    .rotationEffect(.degrees(Double(i) / 10 * 360))
+            }
+        }
+        .onAppear {
+            animate = false
+            withAnimation(.easeOut(duration: 0.85)) { animate = true }
         }
     }
 }

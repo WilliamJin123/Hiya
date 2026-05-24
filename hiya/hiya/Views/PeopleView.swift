@@ -70,7 +70,7 @@ struct PeopleView: View {
                 if !vm.justMet.isEmpty {
                     Section {
                         ForEach(vm.justMet) { person in
-                            personRowButton(person)
+                            personRowButton(person, accent: Theme.accentAmber)
                         }
                     } header: {
                         Text("JUST MET")
@@ -82,7 +82,7 @@ struct PeopleView: View {
                 if !vm.recurring.isEmpty {
                     Section {
                         ForEach(vm.recurring) { person in
-                            personRowButton(person)
+                            personRowButton(person, accent: Theme.accentLavender)
                         }
                     } header: {
                         Text("PEOPLE")
@@ -98,11 +98,11 @@ struct PeopleView: View {
     }
 
     @ViewBuilder
-    private func personRowButton(_ person: Person) -> some View {
+    private func personRowButton(_ person: Person, accent: Color) -> some View {
         Button {
             editing = person
         } label: {
-            PersonRow(person: person)
+            PersonRow(person: person, strip: vm.activityStrip(for: person), accent: accent)
         }
         .buttonStyle(.plain)
         .listRowBackground(Theme.surface)
@@ -119,24 +119,29 @@ struct PeopleView: View {
 
 private struct PersonRow: View {
     let person: Person
+    let strip: [Bool]
+    let accent: Color
 
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(person.name)
-                    .font(Theme.FontScale.body())
-                    .foregroundColor(Theme.textPrimary)
+                HStack(spacing: 6) {
+                    Text(person.name)
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    if person.notes?.isEmpty == false {
+                        Image(systemName: "note.text")
+                            .foregroundColor(Theme.textSecondary)
+                            .font(.system(size: 11))
+                    }
+                }
                 Text(subtitleText)
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)
                     .lineLimit(1)
             }
             Spacer()
-            if person.notes?.isEmpty == false {
-                Image(systemName: "note.text")
-                    .foregroundColor(Theme.textSecondary)
-                    .font(.system(size: 12))
-            }
+            ConsistencyStrip(days: strip, accent: accent)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -149,6 +154,24 @@ private struct PersonRow: View {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .short
         return "Last seen \(f.localizedString(for: person.lastLoggedAt, relativeTo: .now))"
+    }
+}
+
+/// Compact 14-day contact history — one bar per day, oldest → newest. Filled
+/// bars use the section's accent; empty days fade it back, so the rhythm of how
+/// often you've been in touch reads at a glance.
+private struct ConsistencyStrip: View {
+    let days: [Bool]
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(days.enumerated()), id: \.offset) { _, active in
+                Capsule()
+                    .fill(active ? accent : accent.opacity(0.15))
+                    .frame(width: 3, height: 14)
+            }
+        }
     }
 }
 
