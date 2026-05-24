@@ -140,7 +140,7 @@ final class LogSheetViewModel {
                     case .existing(let person):
                         personIds.append(person.id)
                     case .new(let name):
-                        let created = try await repo.createPerson(name: name)
+                        let created = try await repo.createPerson(name: name, status: .cold)
                         personIds.append(created.id)
                     }
                 }

@@ -60,6 +60,17 @@ struct PeopleViewModelTests {
         #expect(strip[0] == false)  // 6 days ago, no log
     }
 
+    @Test func addPerson_createsWarmPerson_inRecurring() async throws {
+        let repo = MockHiyaRepository()
+        let vm = PeopleViewModel(repo: repo)
+        await vm.load()
+
+        await vm.addPerson(name: "Old Friend")
+
+        #expect(vm.recurring.map(\.name) == ["Old Friend"])
+        #expect(vm.justMet.isEmpty)
+    }
+
     @Test func updateNotes_persistsAndReloads() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")

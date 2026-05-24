@@ -3,7 +3,7 @@ import Foundation
 protocol HiyaRepository: Sendable {
     func ensureSignedIn() async throws -> Profile
     func listPeople() async throws -> [Person]
-    func createPerson(name: String) async throws -> Person
+    func createPerson(name: String, status: PersonStatus) async throws -> Person
     func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
     func logConversation(
         personId: UUID,
@@ -91,13 +91,23 @@ final class LiveHiyaRepository: HiyaRepository {
             .value
     }
 
-    func createPerson(name: String) async throws -> Person {
+    func createPerson(name: String, status: PersonStatus = .cold) async throws -> Person {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let userId = try await client.auth.user().id
-        struct Insert: Encodable { let owner_id: UUID; let name: String }
+        struct Insert: Encodable {
+            let owner_id: UUID
+            let name: String
+            let status: String
+            let status_changed_at: String?
+        }
         let inserted: Person = try await client
             .from("people")
-            .insert(Insert(owner_id: userId, name: trimmed))
+            .insert(Insert(
+                owner_id: userId,
+                name: trimmed,
+                status: status.rawValue,
+                status_changed_at: status == .warm ? Date.now.iso8601String : nil
+            ))
             .select()
             .single()
             .execute()

@@ -5,6 +5,8 @@ struct PeopleView: View {
     @State private var vm: PeopleViewModel
     @State private var pendingDeleteId: UUID?
     @State private var editing: Person?
+    @State private var showingAdd = false
+    @State private var newName = ""
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -19,6 +21,28 @@ struct PeopleView: View {
         .navigationTitle("People")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingAdd = true
+                } label: {
+                    Image(systemName: "plus")
+                        .foregroundColor(Theme.accentLavender)
+                }
+            }
+        }
+        .alert("Add someone you know", isPresented: $showingAdd) {
+            TextField("Name", text: $newName)
+                .textInputAutocapitalization(.words)
+            Button("Add") {
+                let name = newName
+                newName = ""
+                Task { await vm.addPerson(name: name) }
+            }
+            Button("Cancel", role: .cancel) { newName = "" }
+        } message: {
+            Text("They'll be added as a Catch-up — someone you already know, no need to log a conversation first.")
+        }
         .task { await vm.load() }
         .refreshable { await vm.load() }
         .sheet(item: $editing, onDismiss: { Task { await vm.load() } }) { person in

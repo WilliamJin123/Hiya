@@ -12,6 +12,13 @@ struct MockHiyaRepositoryTests {
         #expect(alex.statusChangedAt == nil)
     }
 
+    @Test func createPerson_withWarmStatus_setsWarmAndStampsChangedAt() async throws {
+        let repo = MockHiyaRepository()
+        let known = try await repo.createPerson(name: "Mentor", status: .warm)
+        #expect(known.status == .warm)
+        #expect(known.statusChangedAt != nil)
+    }
+
     @Test func logConversation_honorsOccurredAt_andAdvancesLastLoggedForwardOnly() async throws {
         let repo = MockHiyaRepository()
         let p = try await repo.createPerson(name: "Alex")

@@ -84,6 +84,14 @@ final class PeopleViewModel {
         await mutate { try await self.repo.deletePerson(id: id) }
     }
 
+    /// Add someone you already know, directly as a Catch-up (warm) — no logged
+    /// conversation required.
+    func addPerson(name: String) async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        await mutate { _ = try await self.repo.createPerson(name: trimmed, status: .warm) }
+    }
+
     func updateNotes(id: UUID, notes: String?) async {
         await mutate { try await self.repo.updatePersonNotes(id: id, notes: notes) }
     }
