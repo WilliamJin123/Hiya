@@ -12,14 +12,16 @@ protocol HiyaRepository: Sendable {
         occurredAt: Date,
         valence: Conversation.Valence?,
         note: String?,
-        improvementNote: String?
+        improvementNote: String?,
+        location: String?
     ) async throws
     func updateConversation(
         id: UUID,
         occurredAt: Date,
         valence: Conversation.Valence?,
         note: String?,
-        improvementNote: String?
+        improvementNote: String?,
+        location: String?
     ) async throws
     func deleteConversation(id: UUID) async throws
     func deletePerson(id: UUID) async throws
@@ -48,6 +50,7 @@ struct LoggedConversation: Identifiable, Sendable, Equatable {
     let valence: Conversation.Valence?
     let note: String?
     let improvementNote: String?
+    let location: String?
     let wasColdAtTime: Bool
 
     init(
@@ -58,6 +61,7 @@ struct LoggedConversation: Identifiable, Sendable, Equatable {
         valence: Conversation.Valence?,
         note: String?,
         improvementNote: String?,
+        location: String? = nil,
         wasColdAtTime: Bool = false
     ) {
         self.id = id
@@ -67,6 +71,7 @@ struct LoggedConversation: Identifiable, Sendable, Equatable {
         self.valence = valence
         self.note = note
         self.improvementNote = improvementNote
+        self.location = location
         self.wasColdAtTime = wasColdAtTime
     }
 }
@@ -177,13 +182,14 @@ final class LiveHiyaRepository: HiyaRepository {
             let valence: Conversation.Valence?
             let note: String?
             let improvement_note: String?
+            let location: String?
             let was_cold_at_time: Bool
             let people: PersonName
             struct PersonName: Decodable { let name: String }
         }
         let rows: [Row] = try await client
             .from("conversations")
-            .select("id, person_id, occurred_at, valence, note, improvement_note, was_cold_at_time, people(name)")
+            .select("id, person_id, occurred_at, valence, note, improvement_note, location, was_cold_at_time, people(name)")
             .gte("occurred_at", value: start.iso8601String)
             .lt("occurred_at", value: end.iso8601String)
             .order("occurred_at", ascending: false)
@@ -198,6 +204,7 @@ final class LiveHiyaRepository: HiyaRepository {
                 valence: $0.valence,
                 note: $0.note,
                 improvementNote: $0.improvement_note,
+                location: $0.location,
                 wasColdAtTime: $0.was_cold_at_time
             )
         }
@@ -211,13 +218,14 @@ final class LiveHiyaRepository: HiyaRepository {
             let valence: Conversation.Valence?
             let note: String?
             let improvement_note: String?
+            let location: String?
             let was_cold_at_time: Bool
             let people: PersonName
             struct PersonName: Decodable { let name: String }
         }
         let rows: [Row] = try await client
             .from("conversations")
-            .select("id, person_id, occurred_at, valence, note, improvement_note, was_cold_at_time, people(name)")
+            .select("id, person_id, occurred_at, valence, note, improvement_note, location, was_cold_at_time, people(name)")
             .eq("person_id", value: personId)
             .order("occurred_at", ascending: false)
             .execute()
@@ -231,6 +239,7 @@ final class LiveHiyaRepository: HiyaRepository {
                 valence: $0.valence,
                 note: $0.note,
                 improvementNote: $0.improvement_note,
+                location: $0.location,
                 wasColdAtTime: $0.was_cold_at_time
             )
         }
@@ -241,7 +250,8 @@ final class LiveHiyaRepository: HiyaRepository {
         occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
-        improvementNote: String?
+        improvementNote: String?,
+        location: String? = nil
     ) async throws {
         let userId = try await client.auth.user().id
         struct Insert: Encodable {
@@ -251,6 +261,7 @@ final class LiveHiyaRepository: HiyaRepository {
             let valence: Conversation.Valence?
             let note: String?
             let improvement_note: String?
+            let location: String?
         }
         try await client
             .from("conversations")
@@ -260,7 +271,8 @@ final class LiveHiyaRepository: HiyaRepository {
                 occurred_at: occurredAt.iso8601String,
                 valence: valence,
                 note: note,
-                improvement_note: improvementNote
+                improvement_note: improvementNote,
+                location: location
             ))
             .execute()
     }
@@ -270,13 +282,15 @@ final class LiveHiyaRepository: HiyaRepository {
         occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
-        improvementNote: String?
+        improvementNote: String?,
+        location: String? = nil
     ) async throws {
         struct Update: Encodable {
             let occurred_at: String
             let valence: Conversation.Valence?
             let note: String?
             let improvement_note: String?
+            let location: String?
         }
         try await client
             .from("conversations")
@@ -284,7 +298,8 @@ final class LiveHiyaRepository: HiyaRepository {
                 occurred_at: occurredAt.iso8601String,
                 valence: valence,
                 note: note,
-                improvement_note: improvementNote
+                improvement_note: improvementNote,
+                location: location
             ))
             .eq("id", value: id)
             .execute()

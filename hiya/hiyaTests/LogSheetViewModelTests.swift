@@ -394,4 +394,25 @@ struct LogSheetViewModelTests {
         _ = await vm.save()
         #expect(repo.conversations.first?.wasColdAtTime == true)
     }
+
+    @Test func save_sendsTrimmedLocation() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
+        await vm.load()
+        vm.searchText = "Angie"
+        vm.location = "  Blue Bottle, 1 Main St  "
+        _ = await vm.save()
+        #expect(repo.conversations.first?.location == "Blue Bottle, 1 Main St")
+    }
+
+    @Test func editing_seedsLocation() async throws {
+        let repo = MockHiyaRepository()
+        let entry = LoggedConversation(
+            id: UUID(), personId: UUID(), personName: "Angie",
+            occurredAt: .now, valence: nil, note: nil, improvementNote: nil,
+            location: "The Gym"
+        )
+        let vm = LogSheetViewModel(repo: repo, editing: entry)
+        #expect(vm.location == "The Gym")
+    }
 }

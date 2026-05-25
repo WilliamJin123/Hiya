@@ -8,6 +8,7 @@ struct Conversation: Codable, Sendable, Identifiable, Equatable {
     var valence: Valence?
     var note: String?
     var improvementNote: String? = nil
+    var location: String? = nil
     var wasColdAtTime: Bool = false
     let createdAt: Date
 
@@ -23,6 +24,7 @@ struct Conversation: Codable, Sendable, Identifiable, Equatable {
         case valence
         case note
         case improvementNote = "improvement_note"
+        case location
         case wasColdAtTime = "was_cold_at_time"
         case createdAt = "created_at"
     }

@@ -132,6 +132,16 @@ struct PersonDetailSheet: View {
                 Text(entry.occurredAt.formatted(date: .abbreviated, time: .shortened))
                     .font(Theme.FontScale.body())
                     .foregroundColor(Theme.textPrimary)
+                if let location = entry.location, !location.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle")
+                            .font(.system(size: 11))
+                        Text(location)
+                            .font(Theme.FontScale.micro())
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(Theme.textSecondary)
+                }
                 if let note = entry.note, !note.isEmpty {
                     Text(note)
                         .font(Theme.FontScale.secondary())

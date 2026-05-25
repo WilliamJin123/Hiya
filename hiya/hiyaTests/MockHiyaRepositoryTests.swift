@@ -440,4 +440,12 @@ struct MockHiyaRepositoryTests {
         let p = try await repo.createPerson(name: "X", status: .cold, notes: nil, metCold: true)
         #expect(repo.people.first(where: { $0.id == p.id })?.metCold == true)
     }
+
+    @Test func logConversation_storesAndReturnsLocation() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Angie", status: .warm, notes: nil, metCold: false)
+        try await repo.logConversation(personId: p.id, valence: nil, note: nil, improvementNote: nil, location: "The Gym")
+        let history = try await repo.personConversations(personId: p.id)
+        #expect(history.first?.location == "The Gym")
+    }
 }

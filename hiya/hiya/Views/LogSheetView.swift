@@ -4,6 +4,7 @@ struct LogSheetView: View {
     let repo: HiyaRepository
     @State private var vm: LogSheetViewModel
     @State private var showingDeleteConfirm = false
+    @State private var locationSearch = LocationSearchModel()
     @Environment(\.dismiss) private var dismiss
 
     init(
@@ -29,6 +30,7 @@ struct LogSheetView: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                         personSection
                         whenSection
+                        whereSection
                         valenceSection
                         improvementSection
                         noteSection
@@ -200,6 +202,47 @@ struct LogSheetView: View {
             .padding(12)
             .background(Theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        }
+    }
+
+    private var whereSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("WHERE (OPTIONAL)")
+            TextField("Place or address", text: $vm.location)
+                .font(Theme.FontScale.body())
+                .foregroundColor(Theme.textPrimary)
+                .autocorrectionDisabled()
+                .padding(12)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                .onChange(of: vm.location) { _, newValue in
+                    locationSearch.query = newValue
+                }
+            if !locationSearch.suggestions.isEmpty {
+                VStack(spacing: Theme.Spacing.xs) {
+                    ForEach(locationSearch.suggestions) { s in
+                        Button {
+                            vm.location = s.displayString
+                            locationSearch.clear()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "mappin.circle")
+                                    .foregroundColor(Theme.textSecondary)
+                                Text(s.displayString)
+                                    .font(Theme.FontScale.secondary())
+                                    .foregroundColor(Theme.textPrimary)
+                                    .lineLimit(1)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Theme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
         }
     }
 

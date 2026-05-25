@@ -83,6 +83,7 @@ final class MockHiyaRepository: HiyaRepository {
                     valence: conv.valence,
                     note: conv.note,
                     improvementNote: conv.improvementNote,
+                    location: conv.location,
                     wasColdAtTime: conv.wasColdAtTime
                 )
             }
@@ -103,6 +104,7 @@ final class MockHiyaRepository: HiyaRepository {
                     valence: conv.valence,
                     note: conv.note,
                     improvementNote: conv.improvementNote,
+                    location: conv.location,
                     wasColdAtTime: conv.wasColdAtTime
                 )
             }
@@ -113,7 +115,8 @@ final class MockHiyaRepository: HiyaRepository {
         occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
-        improvementNote: String?
+        improvementNote: String?,
+        location: String? = nil
     ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         let conv = Conversation(
@@ -124,6 +127,7 @@ final class MockHiyaRepository: HiyaRepository {
             valence: valence,
             note: note,
             improvementNote: improvementNote,
+            location: location,
             wasColdAtTime: false,
             createdAt: .now
         )
@@ -188,7 +192,8 @@ final class MockHiyaRepository: HiyaRepository {
         occurredAt: Date = .now,
         valence: Conversation.Valence?,
         note: String?,
-        improvementNote: String?
+        improvementNote: String?,
+        location: String? = nil
     ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
@@ -196,6 +201,7 @@ final class MockHiyaRepository: HiyaRepository {
         conversations[idx].valence = valence
         conversations[idx].note = note
         conversations[idx].improvementNote = improvementNote
+        conversations[idx].location = location
         recomputeColdFlags(personId: conversations[idx].personId)
     }
 

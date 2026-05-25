@@ -12,6 +12,7 @@ final class LogSheetViewModel {
     var valence: Conversation.Valence?
     var note: String = ""
     var improvementNote: String = ""
+    var location: String = ""
     var occurredAt: Date = .now
     private(set) var editing: LoggedConversation?
 
@@ -70,6 +71,7 @@ final class LogSheetViewModel {
             valence = editing.valence
             note = editing.note ?? ""
             improvementNote = editing.improvementNote ?? ""
+            location = editing.location ?? ""
             occurredAt = editing.occurredAt
         } else if let preselected = preselectedPerson {
             targets = [.existing(preselected)]
@@ -118,6 +120,8 @@ final class LogSheetViewModel {
             let trimmedImprovement = improvementNote.trimmingCharacters(in: .whitespacesAndNewlines)
             let noteToSend = trimmedNote.isEmpty ? nil : trimmedNote
             let improvementToSend = trimmedImprovement.isEmpty ? nil : trimmedImprovement
+            let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
+            let locationToSend = trimmedLocation.isEmpty ? nil : trimmedLocation
 
             if let editing {
                 try await repo.updateConversation(
@@ -125,7 +129,8 @@ final class LogSheetViewModel {
                     occurredAt: occurredAt,
                     valence: valence,
                     note: noteToSend,
-                    improvementNote: improvementToSend
+                    improvementNote: improvementToSend,
+                    location: locationToSend
                 )
             } else {
                 // Fold any leftover typed text into a target so the fast
@@ -169,7 +174,8 @@ final class LogSheetViewModel {
                         occurredAt: occurredAt,
                         valence: valence,
                         note: noteToSend,
-                        improvementNote: improvementToSend
+                        improvementNote: improvementToSend,
+                        location: locationToSend
                     )
                 }
             }
