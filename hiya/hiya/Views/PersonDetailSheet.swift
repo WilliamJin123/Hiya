@@ -9,6 +9,7 @@ struct PersonDetailSheet: View {
     @State private var editingNote: PersonNote?
     @State private var editText = ""
     @State private var isMoving = false
+    @State private var loggingPast = false
     @Environment(\.dismiss) private var dismiss
 
     init(repo: HiyaRepository, person: Person) {
@@ -29,6 +30,7 @@ struct PersonDetailSheet: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                         header
                         interactionsSection
+                        logPastButton
                         notesSection
                         if person.status == .cold {
                             moveToWarmButton
@@ -59,6 +61,9 @@ struct PersonDetailSheet: View {
         }
         .preferredColorScheme(.dark)
         .task { await vm.load() }
+        .sheet(isPresented: $loggingPast, onDismiss: { Task { await vm.load() } }) {
+            LogSheetView(repo: repo, preselectedPerson: person)
+        }
         .alert("Edit note", isPresented: Binding(
             get: { editingNote != nil },
             set: { if !$0 { editingNote = nil } }
@@ -230,6 +235,24 @@ struct PersonDetailSheet: View {
         }
     }
 
+    private var logPastButton: some View {
+        Button {
+            loggingPast = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "calendar.badge.plus")
+                Text("Log a past meeting")
+            }
+            .font(Theme.FontScale.body())
+            .foregroundColor(Theme.accentLavender)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Theme.accentLavender.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+        }
+        .buttonStyle(.plain)
+    }
+
     private var moveToWarmButton: some View {
         Button {
             Task { await moveToWarm() }
@@ -254,9 +277,10 @@ struct PersonDetailSheet: View {
         defer { isMoving = false }
         do {
             try await repo.updatePersonStatus(id: person.id, status: .warm)
-            // Someone you already knew was never a cold approach — reclassify
-            // their logs so they leave the Approaches tally (today and history).
-            try await repo.reclassifyConversations(personId: person.id, wasCold: false)
+            // They were never a cold approach — clear the cold origin so the
+            // recompute marks all their meetings as warm catch-ups (and they
+            // leave the Approaches tally, today and in history).
+            try await repo.updatePersonMetCold(id: person.id, metCold: false)
             dismiss()
         } catch {
             vm.errorMessage = error.localizedDescription

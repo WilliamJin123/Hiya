@@ -353,4 +353,45 @@ struct LogSheetViewModelTests {
         #expect(success == false)
         #expect(vm.errorMessage != nil)
     }
+
+    // MARK: - Choosable origin (met_cold) + backdating
+
+    @Test func newColdApproach_createsMetColdPerson() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        await vm.load()
+        vm.searchText = "Angie"
+        #expect(vm.origin == .cold)
+
+        let ok = await vm.save()
+        #expect(ok)
+        let angie = repo.people.first { $0.name == "Angie" }
+        #expect(angie?.metCold == true)
+        #expect(angie?.status == .cold)
+    }
+
+    @Test func alreadyKnew_createsWarmNotMetCold() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        await vm.load()
+        vm.searchText = "Old Friend"
+        vm.origin = .warm
+
+        let ok = await vm.save()
+        #expect(ok)
+        let friend = repo.people.first { $0.name == "Old Friend" }
+        #expect(friend?.metCold == false)
+        #expect(friend?.status == .warm)
+    }
+
+    @Test func backdatedFirstMeeting_isCold() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        await vm.load()
+        vm.searchText = "Angie"
+        vm.occurredAt = Calendar.current.date(byAdding: .day, value: -7, to: .now)!
+
+        _ = await vm.save()
+        #expect(repo.conversations.first?.wasColdAtTime == true)
+    }
 }

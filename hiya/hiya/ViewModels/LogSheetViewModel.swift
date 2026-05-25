@@ -15,11 +15,11 @@ final class LogSheetViewModel {
     var occurredAt: Date = .now
     private(set) var editing: LoggedConversation?
 
-    /// Which track this log is being created in. Cold (Approaches) means every
-    /// person is a brand-new stranger — no existing-people suggestions, new
-    /// people saved as `.cold`. Warm (Catch-ups) shows suggestions and saves
-    /// new people as `.warm` (someone you already knew).
-    private let creationMode: PersonStatus
+    /// How a *new* person is created: `.cold` = a cold approach (a brand-new
+    /// stranger; no existing-people suggestions; saved cold + `met_cold`), `.warm`
+    /// = someone you already knew (suggestions shown; saved warm, not met_cold).
+    /// Editable in the sheet when a new person is about to be created.
+    var origin: PersonStatus
 
     private(set) var isLoading: Bool = false
     private(set) var isSaving: Bool = false
@@ -32,7 +32,7 @@ final class LogSheetViewModel {
 
     var filteredPeople: [Person] {
         // Cold approaches are always new strangers — never suggest existing people.
-        guard creationMode == .warm else { return [] }
+        guard origin == .warm else { return [] }
         let chosen = Set(targets.compactMap { target -> UUID? in
             if case .existing(let p) = target { return p.id }
             return nil
@@ -64,7 +64,7 @@ final class LogSheetViewModel {
     ) {
         self.repo = repo
         self.editing = editing
-        self.creationMode = creationMode
+        self.origin = creationMode
         if let editing {
             searchText = editing.personName
             valence = editing.valence
@@ -135,7 +135,7 @@ final class LogSheetViewModel {
                 if !pending.isEmpty {
                     // In warm mode, fold a typed name onto an existing match; in
                     // cold mode it's always a brand-new stranger.
-                    if creationMode == .warm,
+                    if origin == .warm,
                        let match = allPeople.first(where: { $0.name.lowercased() == pending.lowercased() }) {
                         let t = LogTarget.existing(match)
                         if !finalTargets.contains(where: { $0.id == t.id }) { finalTargets.append(t) }
@@ -157,7 +157,7 @@ final class LogSheetViewModel {
                         // which differentiates same-named people later. New people
                         // take the log's track: cold = just-met stranger, warm =
                         // someone you already knew.
-                        let created = try await repo.createPerson(name: name, status: creationMode, notes: noteToSend)
+                        let created = try await repo.createPerson(name: name, status: origin, notes: noteToSend, metCold: origin == .cold)
                         personIds.append(created.id)
                     }
                 }

@@ -37,10 +37,12 @@ final class MockHiyaRepository: HiyaRepository {
         return people.sorted { $0.lastLoggedAt > $1.lastLoggedAt }
     }
 
-    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil) async throws -> Person {
+    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil, metCold: Bool? = nil) async throws -> Person {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         let seed = (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil
+        // A cold-status creation is a cold approach unless told otherwise.
+        let resolvedMetCold = metCold ?? (status == .cold)
         let person = Person(
             id: UUID(),
             ownerId: profile.id,
@@ -48,6 +50,7 @@ final class MockHiyaRepository: HiyaRepository {
             status: status,
             statusChangedAt: status == .warm ? .now : nil,
             notes: seed,
+            metCold: resolvedMetCold,
             createdAt: .now,
             lastLoggedAt: .now
         )
@@ -113,11 +116,6 @@ final class MockHiyaRepository: HiyaRepository {
         improvementNote: String?
     ) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
-        // Mirror the DB BEFORE INSERT trigger: snapshot person.status onto
-        // was_cold_at_time. We no longer auto-graduate here — graduation is
-        // lazy and time-based, run by graduatePastDuePeople(beforeLog:).
-        let currentStatus = people.first(where: { $0.id == personId })?.status ?? .warm
-        let wasCold = (currentStatus == .cold)
         let conv = Conversation(
             id: UUID(),
             ownerId: profile.id,
@@ -126,7 +124,7 @@ final class MockHiyaRepository: HiyaRepository {
             valence: valence,
             note: note,
             improvementNote: improvementNote,
-            wasColdAtTime: wasCold,
+            wasColdAtTime: false,
             createdAt: .now
         )
         conversations.append(conv)
@@ -134,6 +132,7 @@ final class MockHiyaRepository: HiyaRepository {
         if let idx = people.firstIndex(where: { $0.id == personId }), people[idx].lastLoggedAt < occurredAt {
             people[idx].lastLoggedAt = occurredAt
         }
+        recomputeColdFlags(personId: personId)
     }
 
     func updatePersonStatus(id: UUID, status: PersonStatus) async throws {
@@ -142,6 +141,29 @@ final class MockHiyaRepository: HiyaRepository {
             people[i].status = status
             people[i].statusChangedAt = .now
         }
+    }
+
+    func updatePersonMetCold(id: UUID, metCold: Bool) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let i = people.firstIndex(where: { $0.id == id }) else { return }
+        people[i].metCold = metCold
+        recomputeColdFlags(personId: id)
+    }
+
+    /// Mirror the DB recompute: a met_cold person's chronologically earliest
+    /// meeting is cold and the rest warm; a non-met_cold person's are all warm.
+    private func recomputeColdFlags(personId: UUID) {
+        guard let person = people.first(where: { $0.id == personId }) else { return }
+        let mine = conversations.indices.filter { conversations[$0].personId == personId }
+        for i in mine { conversations[i].wasColdAtTime = false }
+        guard person.metCold else { return }
+        let earliest = mine.min { a, b in
+            if conversations[a].occurredAt != conversations[b].occurredAt {
+                return conversations[a].occurredAt < conversations[b].occurredAt
+            }
+            return conversations[a].id.uuidString < conversations[b].id.uuidString
+        }
+        if let earliest { conversations[earliest].wasColdAtTime = true }
     }
 
     func reclassifyConversations(personId: UUID, wasCold: Bool) async throws {
@@ -174,11 +196,14 @@ final class MockHiyaRepository: HiyaRepository {
         conversations[idx].valence = valence
         conversations[idx].note = note
         conversations[idx].improvementNote = improvementNote
+        recomputeColdFlags(personId: conversations[idx].personId)
     }
 
     func deleteConversation(id: UUID) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
+        let personId = conversations.first(where: { $0.id == id })?.personId
         conversations.removeAll { $0.id == id }
+        if let personId { recomputeColdFlags(personId: personId) }
     }
 
     func updatePersonNotes(id: UUID, notes: String?) async throws {

@@ -113,13 +113,8 @@ struct MockHiyaRepositoryTests {
 
     @Test func logConversation_onWarmPerson_snapshotsWarm() async throws {
         let repo = MockHiyaRepository()
-        let alex = try await repo.createPerson(name: "Alex")
-        // Simulate alex having already graduated to warm (the cycle reset
-        // ran sometime in the past).
-        if let idx = repo.people.firstIndex(where: { $0.id == alex.id }) {
-            repo.people[idx].status = .warm
-            repo.people[idx].statusChangedAt = .now
-        }
+        // Someone you already knew (warm origin) — meetings are catch-ups, never cold.
+        let alex = try await repo.createPerson(name: "Alex", status: .warm)
 
         try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
 
@@ -380,5 +375,69 @@ struct MockHiyaRepositoryTests {
         try await repo.deletePerson(id: p.id)
 
         #expect(!repo.personNoteRows.contains { $0.personId == p.id })
+    }
+
+    // MARK: - Chronological cold-flag classification (met_cold)
+
+    @Test func metCold_earliestMeetingIsColdRestWarm() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Angie", status: .cold, notes: nil, metCold: true)
+        let cal = Calendar.current
+        func day(_ ago: Int) -> Date { cal.date(byAdding: .day, value: -ago, to: .now)! }
+        // Insert out of chronological order.
+        try await repo.logConversation(personId: p.id, occurredAt: day(2), valence: nil, note: "gym tue", improvementNote: nil)
+        try await repo.logConversation(personId: p.id, occurredAt: day(7), valence: nil, note: "met sunday", improvementNote: nil)
+        try await repo.logConversation(personId: p.id, occurredAt: day(0), valence: nil, note: "gym today", improvementNote: nil)
+
+        let sorted = repo.conversations.filter { $0.personId == p.id }.sorted { $0.occurredAt < $1.occurredAt }
+        #expect(sorted.first?.note == "met sunday")
+        #expect(sorted.first?.wasColdAtTime == true)
+        #expect(sorted.dropFirst().allSatisfy { $0.wasColdAtTime == false })
+    }
+
+    @Test func notMetCold_allMeetingsWarm() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Old Friend", status: .warm, notes: nil, metCold: false)
+        try await repo.logConversation(personId: p.id, valence: nil, note: nil, improvementNote: nil)
+        try await repo.logConversation(personId: p.id, valence: nil, note: nil, improvementNote: nil)
+        #expect(repo.conversations.allSatisfy { $0.wasColdAtTime == false })
+    }
+
+    @Test func updatePersonMetCold_flipsClassification() async throws {
+        let repo = MockHiyaRepository()
+        let cal = Calendar.current
+        let p = try await repo.createPerson(name: "Sam", status: .warm, notes: nil, metCold: false)
+        try await repo.logConversation(personId: p.id, occurredAt: cal.date(byAdding: .day, value: -3, to: .now)!, valence: nil, note: "first", improvementNote: nil)
+        try await repo.logConversation(personId: p.id, occurredAt: .now, valence: nil, note: "second", improvementNote: nil)
+        #expect(repo.conversations.allSatisfy { $0.wasColdAtTime == false })
+
+        try await repo.updatePersonMetCold(id: p.id, metCold: true)
+        let sorted = repo.conversations.sorted { $0.occurredAt < $1.occurredAt }
+        #expect(sorted.first?.wasColdAtTime == true)
+        #expect(sorted.last?.wasColdAtTime == false)
+
+        try await repo.updatePersonMetCold(id: p.id, metCold: false)
+        #expect(repo.conversations.allSatisfy { $0.wasColdAtTime == false })
+    }
+
+    @Test func deletingEarliest_promotesNextEarliestToCold() async throws {
+        let repo = MockHiyaRepository()
+        let cal = Calendar.current
+        let p = try await repo.createPerson(name: "Angie", status: .cold, notes: nil, metCold: true)
+        try await repo.logConversation(personId: p.id, occurredAt: cal.date(byAdding: .day, value: -5, to: .now)!, valence: nil, note: "earliest", improvementNote: nil)
+        try await repo.logConversation(personId: p.id, occurredAt: .now, valence: nil, note: "later", improvementNote: nil)
+        let earliestId = repo.conversations.min { $0.occurredAt < $1.occurredAt }!.id
+
+        try await repo.deleteConversation(id: earliestId)
+
+        #expect(repo.conversations.count == 1)
+        #expect(repo.conversations.first?.note == "later")
+        #expect(repo.conversations.first?.wasColdAtTime == true)
+    }
+
+    @Test func createPerson_metCold_persists() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "X", status: .cold, notes: nil, metCold: true)
+        #expect(repo.people.first(where: { $0.id == p.id })?.metCold == true)
     }
 }

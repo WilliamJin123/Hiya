@@ -31,15 +31,11 @@ struct HomeViewModelTests {
 
     @Test func counts_areSeparateByValence() async throws {
         let repo = MockHiyaRepository()
-        // One cold log (fresh person stays cold)...
+        // One cold approach (cold origin)...
         let cold = try await repo.createPerson(name: "Cold")
         try await repo.logConversation(personId: cold.id, valence: nil, note: nil, improvementNote: nil)
-        // ...and one warm log (flip status before logging so it snapshots warm).
-        let warm = try await repo.createPerson(name: "Warm")
-        if let idx = repo.people.firstIndex(where: { $0.id == warm.id }) {
-            repo.people[idx].status = .warm
-            repo.people[idx].statusChangedAt = .now
-        }
+        // ...and one catch-up with someone you already knew (warm origin).
+        let warm = try await repo.createPerson(name: "Warm", status: .warm)
         try await repo.logConversation(personId: warm.id, valence: nil, note: nil, improvementNote: nil)
 
         let vm = HomeViewModel(repo: repo)
@@ -64,23 +60,18 @@ struct HomeViewModelTests {
 
     @Test func refreshExcludesConversationsOutsideToday() async throws {
         let repo = MockHiyaRepository()
-        let alex = try await repo.createPerson(name: "Alex")
+        // A cold approach logged today — counts.
+        let today = try await repo.createPerson(name: "Today")
+        try await repo.logConversation(personId: today.id, valence: nil, note: nil, improvementNote: nil)
+        // A different person whose only meeting was yesterday — outside today's window.
+        let past = try await repo.createPerson(name: "Past")
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
-        repo.conversations.append(Conversation(
-            id: UUID(),
-            ownerId: repo.profile.id,
-            personId: alex.id,
-            occurredAt: yesterday,
-            valence: nil,
-            note: nil,
-            createdAt: yesterday
-        ))
-        try await repo.logConversation(personId: alex.id, valence: nil, note: nil, improvementNote: nil)
+        try await repo.logConversation(personId: past.id, occurredAt: yesterday, valence: nil, note: nil, improvementNote: nil)
 
         let vm = HomeViewModel(repo: repo)
         await vm.refresh()
 
-        #expect(vm.count(for: .cold) == 1, "yesterday's conversation should not count")
+        #expect(vm.count(for: .cold) == 1, "yesterday's conversation should not count toward today")
     }
 
     @Test func backDatedLog_doesNotCountToday() async throws {

@@ -4,7 +4,7 @@ protocol HiyaRepository: Sendable {
     func ensureSignedIn() async throws -> Profile
     func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile
     func listPeople() async throws -> [Person]
-    func createPerson(name: String, status: PersonStatus, notes: String?) async throws -> Person
+    func createPerson(name: String, status: PersonStatus, notes: String?, metCold: Bool?) async throws -> Person
     func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
     func personConversations(personId: UUID) async throws -> [LoggedConversation]
     func logConversation(
@@ -29,6 +29,7 @@ protocol HiyaRepository: Sendable {
     func updatePersonNote(id: UUID, body: String) async throws
     func deletePersonNote(id: UUID) async throws
     func updatePersonStatus(id: UUID, status: PersonStatus) async throws
+    func updatePersonMetCold(id: UUID, metCold: Bool) async throws
     func reclassifyConversations(personId: UUID, wasCold: Bool) async throws
     func graduatePastDuePeople(beforeLog: Date) async throws
     func recentConversationActivity(since: Date) async throws -> [ConversationActivity]
@@ -119,10 +120,12 @@ final class LiveHiyaRepository: HiyaRepository {
             .value
     }
 
-    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil) async throws -> Person {
+    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil, metCold: Bool? = nil) async throws -> Person {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         let seed = (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil
+        // A cold-status creation is a cold approach unless told otherwise.
+        let resolvedMetCold = metCold ?? (status == .cold)
         let userId = try await client.auth.user().id
         struct Insert: Encodable {
             let owner_id: UUID
@@ -130,6 +133,7 @@ final class LiveHiyaRepository: HiyaRepository {
             let status: String
             let status_changed_at: String?
             let notes: String?
+            let met_cold: Bool
         }
         let inserted: Person = try await client
             .from("people")
@@ -138,7 +142,8 @@ final class LiveHiyaRepository: HiyaRepository {
                 name: trimmed,
                 status: status.rawValue,
                 status_changed_at: status == .warm ? Date.now.iso8601String : nil,
-                notes: seed
+                notes: seed,
+                met_cold: resolvedMetCold
             ))
             .select()
             .single()
@@ -383,6 +388,15 @@ final class LiveHiyaRepository: HiyaRepository {
         try await client
             .from("people")
             .update(Update(status: status.rawValue, status_changed_at: Date.now.iso8601String))
+            .eq("id", value: id)
+            .execute()
+    }
+
+    func updatePersonMetCold(id: UUID, metCold: Bool) async throws {
+        struct Update: Encodable { let met_cold: Bool }
+        try await client
+            .from("people")
+            .update(Update(met_cold: metCold))
             .eq("id", value: id)
             .execute()
     }

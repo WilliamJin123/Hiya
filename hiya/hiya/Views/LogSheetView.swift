@@ -97,6 +97,14 @@ struct LogSheetView: View {
                     .padding(12)
                     .background(Theme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                if vm.canAddTypedName {
+                    Picker("How did you meet?", selection: $vm.origin) {
+                        Text("Cold approach").tag(PersonStatus.cold)
+                        Text("Already knew them").tag(PersonStatus.warm)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.top, 4)
+                }
                 if !vm.filteredPeople.isEmpty || vm.canAddTypedName {
                     VStack(spacing: Theme.Spacing.xs) {
                         ForEach(vm.filteredPeople) { person in
