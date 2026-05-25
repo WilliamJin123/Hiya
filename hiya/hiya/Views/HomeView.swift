@@ -7,6 +7,8 @@ struct HomeView: View {
     @State private var sheetMode: LogSheetMode?
     @State private var showingSettings = false
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
+    @Environment(NotificationManager.self) private var notifications
+    @Environment(\.scenePhase) private var scenePhase
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -57,12 +59,12 @@ struct HomeView: View {
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showingSettings, onDismiss: { Task { await vm.refresh() } }) {
+            .sheet(isPresented: $showingSettings, onDismiss: { Task { await vm.refresh(); await syncReminders() } }) {
                 SettingsView(repo: repo)
             }
-            .task { await vm.refresh(); await challengesVM.load() }
-            .refreshable { await vm.refresh(); await challengesVM.load() }
-            .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load() } }) { sheet in
+            .task { await vm.refresh(); await challengesVM.load(); await syncReminders() }
+            .refreshable { await vm.refresh(); await challengesVM.load(); await syncReminders() }
+            .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load(); await syncReminders() } }) { sheet in
                 switch sheet {
                 case .create(let p, let mode):
                     LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode)
@@ -78,7 +80,16 @@ struct HomeView: View {
             } message: {
                 Text(vm.errorMessage ?? "")
             }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    Task { await vm.refresh(); await syncReminders() }
+                }
+            }
         }
+    }
+
+    private func syncReminders() async {
+        await notifications.refresh(goalMetToday: vm.isGoalMet(for: .cold))
     }
 
     private var modeToggle: some View {
@@ -359,5 +370,6 @@ private struct LogRow: View {
 
 #Preview {
     HomeView(repo: MockHiyaRepository())
+        .environment(NotificationManager(scheduler: MockNotificationScheduler()))
         .preferredColorScheme(.dark)
 }

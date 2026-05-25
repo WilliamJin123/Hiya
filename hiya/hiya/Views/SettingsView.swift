@@ -5,6 +5,7 @@ struct SettingsView: View {
 
     @State private var vm: SettingsViewModel
     @Environment(SessionViewModel.self) private var session
+    @Environment(NotificationManager.self) private var notifications
     @Environment(\.dismiss) private var dismiss
     @State private var claimEmail = ""
     @State private var claimPassword = ""
@@ -46,6 +47,8 @@ struct SettingsView: View {
                                 .font(Theme.FontScale.secondary())
                                 .foregroundColor(Theme.valenceNegative)
                         }
+
+                        remindersSection
 
                         saveButton
                     }
@@ -94,6 +97,65 @@ struct SettingsView: View {
                     .foregroundColor(Theme.valenceNegative)
             }
         }
+    }
+
+    @ViewBuilder
+    private var remindersSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("REMINDERS")
+                .font(Theme.FontScale.bodyHeading())
+                .tracking(1.2)
+                .foregroundColor(Theme.textSecondary)
+
+            Toggle(isOn: Binding(
+                get: { notifications.enabled },
+                set: { on in
+                    Task {
+                        if on { _ = await notifications.enable() }
+                        else { await notifications.disable() }
+                    }
+                }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Daily approach reminder")
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    Text("A nudge to approach someone — skipped once you hit your goal.")
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(Theme.accentLavender)
+            .padding(Theme.Spacing.md)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+
+            if notifications.enabled {
+                HStack {
+                    Text("Time")
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    Spacer()
+                    DatePicker("", selection: Binding(
+                        get: { notifications.time },
+                        set: { newDate in Task { await notifications.setTime(newDate) } }
+                    ), displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                }
+                .padding(Theme.Spacing.md)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            }
+
+            if notifications.authorizationStatus == .denied {
+                Text("Notifications are off in iOS Settings. Turn them on for Hiya to send reminders.")
+                    .font(Theme.FontScale.secondary())
+                    .foregroundColor(Theme.valenceNegative)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .task { await notifications.refreshAuthorizationStatus() }
     }
 
     private var permanentAccountView: some View {
@@ -219,5 +281,6 @@ struct SettingsView: View {
 #Preview {
     SettingsView(repo: MockHiyaRepository())
         .environment(SessionViewModel(repo: MockHiyaRepository()))
+        .environment(NotificationManager(scheduler: MockNotificationScheduler()))
         .preferredColorScheme(.dark)
 }

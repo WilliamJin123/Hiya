@@ -22,5 +22,6 @@ struct RootView: View {
 
 #Preview {
     RootView(repo: MockHiyaRepository())
+        .environment(NotificationManager(scheduler: MockNotificationScheduler()))
         .preferredColorScheme(.dark)
 }
