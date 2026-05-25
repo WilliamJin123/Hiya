@@ -270,9 +270,7 @@ struct HomeView: View {
     }
 
     private func relativeLastLogged(_ date: Date) -> String {
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .short
-        return f.localizedString(for: date, relativeTo: .now)
+        Formatters.relative(date)
     }
 
     @ViewBuilder

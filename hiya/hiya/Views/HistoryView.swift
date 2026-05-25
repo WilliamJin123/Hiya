@@ -216,9 +216,7 @@ struct HistoryView: View {
     }
 
     private func monthLabel(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "MMMM yyyy"
-        return f.string(from: date)
+        Formatters.monthYear.string(from: date)
     }
 
     /// Surface plus a faint valence wash, so a day's rows read warm/rough at a

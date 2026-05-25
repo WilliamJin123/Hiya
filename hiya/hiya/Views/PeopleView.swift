@@ -178,9 +178,7 @@ private struct PersonRow: View {
         if let notes = person.notes, !notes.isEmpty {
             return notes
         }
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .short
-        return "Last seen \(f.localizedString(for: person.lastLoggedAt, relativeTo: .now))"
+        return "Last seen \(Formatters.relative(person.lastLoggedAt))"
     }
 }
 
