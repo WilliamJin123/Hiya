@@ -13,6 +13,7 @@ final class LogSheetViewModel {
     var note: String = ""
     var improvementNote: String = ""
     var location: String = ""
+    private(set) var recentLocations: [String] = []
     var occurredAt: Date = .now
     /// How many nameless quick approaches to log in one save (e.g. a session of
     /// similar attempts). Only used on the quick-approach path.
@@ -102,6 +103,7 @@ final class LogSheetViewModel {
         defer { isLoading = false }
         do {
             allPeople = try await repo.listPeople()
+            recentLocations = (try? await repo.recentLocations(limit: 8)) ?? []
         } catch {
             errorMessage = error.localizedDescription
         }

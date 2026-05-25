@@ -5,6 +5,7 @@ struct LogSheetView: View {
     @State private var vm: LogSheetViewModel
     @State private var showingDeleteConfirm = false
     @State private var locationSearch = LocationSearchModel()
+    @FocusState private var locationFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
     init(
@@ -64,7 +65,11 @@ struct LogSheetView: View {
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .task { if vm.editing == nil { await vm.load() } }
+            .task {
+                if vm.editing == nil { await vm.load() }
+                locationSearch.recents = vm.recentLocations
+                locationSearch.start()
+            }
         }
         .preferredColorScheme(.dark)
     }
@@ -241,38 +246,56 @@ struct LogSheetView: View {
                 .font(Theme.FontScale.body())
                 .foregroundColor(Theme.textPrimary)
                 .autocorrectionDisabled()
+                .focused($locationFocused)
                 .padding(12)
                 .background(Theme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                 .onChange(of: vm.location) { _, newValue in
                     locationSearch.query = newValue
                 }
-            if !locationSearch.suggestions.isEmpty {
+
+            if locationFocused
+                && vm.location.trimmingCharacters(in: .whitespaces).isEmpty
+                && !locationSearch.recents.isEmpty {
+                // Recents (Google-Maps style) when the field is focused but empty.
+                VStack(spacing: Theme.Spacing.xs) {
+                    ForEach(locationSearch.recents, id: \.self) { place in
+                        locationRow(icon: "clock", text: place) {
+                            vm.location = place
+                            locationFocused = false
+                        }
+                    }
+                }
+            } else if !locationSearch.suggestions.isEmpty {
                 VStack(spacing: Theme.Spacing.xs) {
                     ForEach(locationSearch.suggestions) { s in
-                        Button {
+                        locationRow(icon: "mappin.circle", text: s.displayString) {
                             vm.location = s.displayString
                             locationSearch.clear()
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "mappin.circle")
-                                    .foregroundColor(Theme.textSecondary)
-                                Text(s.displayString)
-                                    .font(Theme.FontScale.secondary())
-                                    .foregroundColor(Theme.textPrimary)
-                                    .lineLimit(1)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Theme.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                            locationFocused = false
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
         }
+    }
+
+    private func locationRow(icon: String, text: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).foregroundColor(Theme.textSecondary)
+                Text(text)
+                    .font(Theme.FontScale.secondary())
+                    .foregroundColor(Theme.textPrimary)
+                    .lineLimit(1)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        }
+        .buttonStyle(.plain)
     }
 
     private var valenceSection: some View {
