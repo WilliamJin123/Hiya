@@ -10,6 +10,7 @@ struct PersonDetailSheet: View {
     @State private var editText = ""
     @State private var isMoving = false
     @State private var loggingPast = false
+    @State private var editingInteraction: LoggedConversation?
     @Environment(\.dismiss) private var dismiss
 
     init(repo: HiyaRepository, person: Person) {
@@ -63,6 +64,9 @@ struct PersonDetailSheet: View {
         .task { await vm.load() }
         .sheet(isPresented: $loggingPast, onDismiss: { Task { await vm.load() } }) {
             LogSheetView(repo: repo, preselectedPerson: person)
+        }
+        .sheet(item: $editingInteraction, onDismiss: { Task { await vm.load() } }) { entry in
+            LogSheetView(repo: repo, editing: entry)
         }
         .alert("Edit note", isPresented: Binding(
             get: { editingNote != nil },
@@ -158,6 +162,8 @@ struct PersonDetailSheet: View {
             Spacer()
         }
         .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture { editingInteraction = entry }
     }
 
     private func valenceColor(_ valence: Conversation.Valence?) -> Color {
