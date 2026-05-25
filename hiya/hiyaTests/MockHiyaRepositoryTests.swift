@@ -504,4 +504,18 @@ struct MockHiyaRepositoryTests {
         #expect(p.displayName == "Will")
         #expect(repo.profile.displayName == "Will")
     }
+
+    @Test func recentLocations_distinctRecentFirst_dropsBlanks() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "A", status: .warm, notes: nil, metCold: false)
+        let cal = Calendar.current
+        func at(_ ago: Int) -> Date { cal.date(byAdding: .day, value: -ago, to: .now)! }
+        try await repo.logConversation(personId: p.id, occurredAt: at(5), valence: nil, note: nil, improvementNote: nil, location: "Gym")
+        try await repo.logConversation(personId: p.id, occurredAt: at(3), valence: nil, note: nil, improvementNote: nil, location: "Cafe")
+        try await repo.logConversation(personId: p.id, occurredAt: at(1), valence: nil, note: nil, improvementNote: nil, location: "Gym")
+        try await repo.logConversation(personId: p.id, occurredAt: at(0), valence: nil, note: nil, improvementNote: nil, location: "  ")
+
+        let recents = try await repo.recentLocations(limit: 8)
+        #expect(recents == ["Gym", "Cafe"], "distinct, most-recent occurrence first, blanks dropped")
+    }
 }

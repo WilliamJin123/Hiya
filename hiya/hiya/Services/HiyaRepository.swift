@@ -19,6 +19,7 @@ protocol HiyaRepository: Sendable {
     func createPerson(name: String, status: PersonStatus, notes: String?, metCold: Bool?, anonymous: Bool) async throws -> Person
     func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
     func personConversations(personId: UUID) async throws -> [LoggedConversation]
+    func recentLocations(limit: Int) async throws -> [String]
     func logConversation(
         personId: UUID,
         occurredAt: Date,
@@ -329,6 +330,27 @@ final class LiveHiyaRepository: HiyaRepository {
                 wasColdAtTime: $0.was_cold_at_time
             )
         }
+    }
+
+    func recentLocations(limit: Int = 8) async throws -> [String] {
+        struct Row: Decodable { let location: String? }
+        // Pull the most recent logs and dedupe locations in Swift (nils/blanks
+        // skipped below) — avoids depending on a server-side null filter.
+        let rows: [Row] = try await client
+            .from("conversations")
+            .select("location, occurred_at")
+            .order("occurred_at", ascending: false)
+            .limit(200)
+            .execute()
+            .value
+        var seen = Set<String>()
+        var out: [String] = []
+        for r in rows {
+            guard let loc = r.location?.trimmingCharacters(in: .whitespacesAndNewlines), !loc.isEmpty else { continue }
+            if seen.insert(loc.lowercased()).inserted { out.append(loc) }
+            if out.count >= limit { break }
+        }
+        return out
     }
 
     func logConversation(

@@ -149,6 +149,18 @@ final class MockHiyaRepository: HiyaRepository {
             }
     }
 
+    func recentLocations(limit: Int = 8) async throws -> [String] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        var seen = Set<String>()
+        var out: [String] = []
+        for c in conversations.sorted(by: { $0.occurredAt > $1.occurredAt }) {
+            guard let loc = c.location?.trimmingCharacters(in: .whitespacesAndNewlines), !loc.isEmpty else { continue }
+            if seen.insert(loc.lowercased()).inserted { out.append(loc) }
+            if out.count >= limit { break }
+        }
+        return out
+    }
+
     func logConversation(
         personId: UUID,
         occurredAt: Date = .now,
