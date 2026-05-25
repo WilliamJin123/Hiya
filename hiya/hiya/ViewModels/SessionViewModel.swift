@@ -4,10 +4,11 @@ import Observation
 @MainActor
 @Observable
 final class SessionViewModel {
-    enum State: Equatable { case loading, app, auth }
+    enum State: Equatable { case loading, app, onboarding, auth }
     enum GateDecision: Equatable { case app, auth, createAnonymous }
 
     private let repo: HiyaRepository
+    private let defaults: UserDefaults
     private(set) var state: State = .loading
     private(set) var account: AuthAccount?
     private(set) var profile: Profile?
@@ -15,12 +16,21 @@ final class SessionViewModel {
     var errorMessage: String?
 
     private let graduatedKey = "hiya.hasGraduatedToAccount"
+    private let onboardedKey = "hiya.hasOnboarded"
+
     private var hasGraduated: Bool {
-        get { UserDefaults.standard.bool(forKey: graduatedKey) }
-        set { UserDefaults.standard.set(newValue, forKey: graduatedKey) }
+        get { defaults.bool(forKey: graduatedKey) }
+        set { defaults.set(newValue, forKey: graduatedKey) }
+    }
+    private var hasOnboarded: Bool {
+        get { defaults.bool(forKey: onboardedKey) }
+        set { defaults.set(newValue, forKey: onboardedKey) }
     }
 
-    init(repo: HiyaRepository) { self.repo = repo }
+    init(repo: HiyaRepository, defaults: UserDefaults = .standard) {
+        self.repo = repo
+        self.defaults = defaults
+    }
 
     /// Pure gate decision: a live session → app; otherwise sign-in if this device
     /// has had a real account, else create a fresh anonymous session.
@@ -35,14 +45,14 @@ final class SessionViewModel {
         case .app:
             account = acct
             profile = try? await repo.ensureSignedIn()
-            state = .app
+            state = hasOnboarded ? .app : .onboarding
         case .auth:
             state = .auth
         case .createAnonymous:
             do {
                 profile = try await repo.ensureSignedIn()
                 account = await repo.currentAccount()
-                state = .app
+                state = hasOnboarded ? .app : .onboarding
             } catch {
                 errorMessage = error.localizedDescription
                 state = .auth
@@ -63,6 +73,7 @@ final class SessionViewModel {
             self.profile = try await self.repo.signUp(email: email, password: password, displayName: displayName)
             self.account = await self.repo.currentAccount()
             self.hasGraduated = true
+            self.hasOnboarded = true
             self.state = .app
         }
     }
@@ -72,6 +83,7 @@ final class SessionViewModel {
             self.profile = try await self.repo.signIn(email: email, password: password)
             self.account = await self.repo.currentAccount()
             self.hasGraduated = true
+            self.hasOnboarded = true
             self.state = .app
         }
     }
@@ -87,6 +99,11 @@ final class SessionViewModel {
         profile = nil
         hasGraduated = true
         state = .auth
+    }
+
+    func completeOnboarding() {
+        hasOnboarded = true
+        state = .app
     }
 
     func updateDisplayName(_ name: String) async -> Bool {

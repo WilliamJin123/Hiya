@@ -20,6 +20,8 @@ struct AppGateView: View {
             case .app:
                 RootView(repo: repo)
                     .environment(session)
+            case .onboarding:
+                ZStack { Theme.bgGradient.ignoresSafeArea(); ProgressView().tint(Theme.accentLavender) }
             case .auth:
                 AuthView(session: session)
             }
