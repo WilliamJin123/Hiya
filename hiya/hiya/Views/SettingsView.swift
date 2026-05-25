@@ -76,14 +76,14 @@ struct SettingsView: View {
                     .foregroundColor(Theme.textSecondary)
             }
             Spacer()
-            Stepper(value: value, in: 1...50) {
-                Text("\(value.wrappedValue)")
-                    .font(.custom(Theme.FontName.counterMono, size: 22).weight(.semibold))
-                    .foregroundColor(accent)
-                    .frame(minWidth: 32, alignment: .trailing)
-            }
-            .labelsHidden()
-            .fixedSize()
+            Text("\(value.wrappedValue)")
+                .font(.custom(Theme.FontName.counterMono, size: 22).weight(.semibold))
+                .foregroundColor(accent)
+                .frame(minWidth: 32, alignment: .trailing)
+                .contentTransition(.numericText())
+            Stepper("", value: value, in: 1...50)
+                .labelsHidden()
+                .fixedSize()
         }
         .padding(Theme.Spacing.md)
         .background(Theme.surface)
