@@ -85,6 +85,26 @@ final class MockHiyaRepository: HiyaRepository {
             }
     }
 
+    func personConversations(personId: UUID) async throws -> [LoggedConversation] {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        return conversations
+            .filter { $0.personId == personId }
+            .sorted { $0.occurredAt > $1.occurredAt }
+            .map { conv in
+                let name = people.first(where: { $0.id == conv.personId })?.name ?? "Unknown"
+                return LoggedConversation(
+                    id: conv.id,
+                    personId: conv.personId,
+                    personName: name,
+                    occurredAt: conv.occurredAt,
+                    valence: conv.valence,
+                    note: conv.note,
+                    improvementNote: conv.improvementNote,
+                    wasColdAtTime: conv.wasColdAtTime
+                )
+            }
+    }
+
     func logConversation(
         personId: UUID,
         occurredAt: Date = .now,

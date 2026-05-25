@@ -346,6 +346,22 @@ struct MockHiyaRepositoryTests {
         #expect(notes.map(\.body) == ["newer", "older"])
     }
 
+    @Test func personConversations_returnsOnlyThatPersonsLogsNewestFirst() async throws {
+        let repo = MockHiyaRepository()
+        let alex = try await repo.createPerson(name: "Alex")
+        let bea = try await repo.createPerson(name: "Bea")
+        let older = Calendar.current.date(byAdding: .day, value: -2, to: .now)!
+        try await repo.logConversation(personId: alex.id, occurredAt: older, valence: nil, note: "first", improvementNote: nil)
+        try await repo.logConversation(personId: alex.id, valence: nil, note: "second", improvementNote: nil)
+        try await repo.logConversation(personId: bea.id, valence: nil, note: "bea's", improvementNote: nil)
+
+        let convs = try await repo.personConversations(personId: alex.id)
+
+        #expect(convs.count == 2, "only Alex's conversations")
+        #expect(convs.map(\.note) == ["second", "first"], "newest first")
+        #expect(convs.allSatisfy { $0.personName == "Alex" })
+    }
+
     @Test func updateGoals_setsBothGoals() async throws {
         let repo = MockHiyaRepository()
         let updated = try await repo.updateGoals(coldDailyGoal: 3, warmDailyGoal: 8)

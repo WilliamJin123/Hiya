@@ -60,4 +60,16 @@ struct PersonDetailViewModelTests {
 
         #expect(vm.notes.map(\.body) == ["seed"])
     }
+
+    @Test func load_populatesInteractions() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Alex")
+        try await repo.logConversation(personId: p.id, valence: .positive, note: "good chat", improvementNote: nil)
+        let vm = PersonDetailViewModel(repo: repo, person: p)
+
+        await vm.load()
+
+        #expect(vm.interactions.count == 1)
+        #expect(vm.interactions.first?.note == "good chat")
+    }
 }

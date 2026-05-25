@@ -6,6 +6,7 @@ protocol HiyaRepository: Sendable {
     func listPeople() async throws -> [Person]
     func createPerson(name: String, status: PersonStatus, notes: String?) async throws -> Person
     func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
+    func personConversations(personId: UUID) async throws -> [LoggedConversation]
     func logConversation(
         personId: UUID,
         occurredAt: Date,
@@ -180,6 +181,39 @@ final class LiveHiyaRepository: HiyaRepository {
             .select("id, person_id, occurred_at, valence, note, improvement_note, was_cold_at_time, people(name)")
             .gte("occurred_at", value: start.iso8601String)
             .lt("occurred_at", value: end.iso8601String)
+            .order("occurred_at", ascending: false)
+            .execute()
+            .value
+        return rows.map {
+            LoggedConversation(
+                id: $0.id,
+                personId: $0.person_id,
+                personName: $0.people.name,
+                occurredAt: $0.occurred_at,
+                valence: $0.valence,
+                note: $0.note,
+                improvementNote: $0.improvement_note,
+                wasColdAtTime: $0.was_cold_at_time
+            )
+        }
+    }
+
+    func personConversations(personId: UUID) async throws -> [LoggedConversation] {
+        struct Row: Decodable {
+            let id: UUID
+            let person_id: UUID
+            let occurred_at: Date
+            let valence: Conversation.Valence?
+            let note: String?
+            let improvement_note: String?
+            let was_cold_at_time: Bool
+            let people: PersonName
+            struct PersonName: Decodable { let name: String }
+        }
+        let rows: [Row] = try await client
+            .from("conversations")
+            .select("id, person_id, occurred_at, valence, note, improvement_note, was_cold_at_time, people(name)")
+            .eq("person_id", value: personId)
             .order("occurred_at", ascending: false)
             .execute()
             .value

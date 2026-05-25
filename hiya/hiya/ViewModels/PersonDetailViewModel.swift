@@ -7,6 +7,7 @@ final class PersonDetailViewModel {
     let person: Person
 
     var notes: [PersonNote] = []
+    var interactions: [LoggedConversation] = []
     var errorMessage: String?
     var isWorking = false
 
@@ -17,7 +18,10 @@ final class PersonDetailViewModel {
 
     func load() async {
         do {
-            notes = try await repo.personNotes(personId: person.id)
+            async let notesResult = repo.personNotes(personId: person.id)
+            async let interactionsResult = repo.personConversations(personId: person.id)
+            notes = try await notesResult
+            interactions = try await interactionsResult
         } catch {
             errorMessage = error.localizedDescription
         }

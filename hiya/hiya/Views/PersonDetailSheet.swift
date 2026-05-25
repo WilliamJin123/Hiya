@@ -28,6 +28,7 @@ struct PersonDetailSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                         header
+                        interactionsSection
                         notesSection
                         if person.status == .cold {
                             moveToWarmButton
@@ -88,6 +89,68 @@ struct PersonDetailSheet: View {
                     .foregroundColor(Theme.textSecondary)
             }
             Spacer()
+        }
+    }
+
+    private var interactionsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("INTERACTIONS")
+                .font(Theme.FontScale.bodyHeading())
+                .tracking(1.2)
+                .foregroundColor(Theme.textSecondary)
+
+            if vm.interactions.isEmpty {
+                Text("No conversations logged with \(person.name) yet.")
+                    .font(Theme.FontScale.secondary())
+                    .foregroundColor(Theme.textSecondary)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(vm.interactions) { entry in
+                        interactionRow(entry)
+                        if entry.id != vm.interactions.last?.id {
+                            Theme.divider.frame(height: 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func interactionRow(_ entry: LoggedConversation) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            Circle()
+                .fill(valenceColor(entry.valence))
+                .frame(width: 9, height: 9)
+                .padding(.top, 5)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.occurredAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                if let note = entry.note, !note.isEmpty {
+                    Text(note)
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let improvement = entry.improvementNote, !improvement.isEmpty {
+                    Text("To improve: \(improvement)")
+                        .font(Theme.FontScale.micro())
+                        .foregroundColor(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func valenceColor(_ valence: Conversation.Valence?) -> Color {
+        switch valence {
+        case .positive: Theme.valencePositive
+        case .neutral:  Theme.valenceNeutral
+        case .negative: Theme.valenceNegative
+        case .none:     Theme.valenceNone
         }
     }
 
