@@ -68,23 +68,43 @@ struct InsightsView: View {
     private var activityCard: some View {
         card("ACTIVITY · LAST 8 WEEKS") {
             Chart {
-                ForEach(vm.weeks) { w in
+                ForEach(vm.days) { d in
                     BarMark(
-                        x: .value("Week", w.weekStart, unit: .weekOfYear),
-                        y: .value("Count", w.cold)
+                        x: .value("Day", d.day, unit: .day),
+                        y: .value("Count", d.cold),
+                        width: .fixed(4)
                     )
                     .foregroundStyle(by: .value("Track", "Approaches"))
+                    .cornerRadius(1)
                     BarMark(
-                        x: .value("Week", w.weekStart, unit: .weekOfYear),
-                        y: .value("Count", w.warm)
+                        x: .value("Day", d.day, unit: .day),
+                        y: .value("Count", d.warm),
+                        width: .fixed(4)
                     )
                     .foregroundStyle(by: .value("Track", "Catch-ups"))
+                    .cornerRadius(1)
                 }
             }
             .chartForegroundStyleScale([
                 "Approaches": Theme.coldAccent,
                 "Catch-ups": Theme.warmAccent
             ])
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 14)) { _ in
+                    AxisGridLine().foregroundStyle(Theme.divider)
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                        .font(Theme.FontScale.micro())
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+                    AxisGridLine().foregroundStyle(Theme.divider)
+                    AxisValueLabel()
+                        .font(Theme.FontScale.micro())
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
             .chartLegend(position: .bottom, spacing: 8)
             .frame(height: 180)
         }

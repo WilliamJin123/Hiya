@@ -1,11 +1,11 @@
 import Foundation
 
-/// One week's worth of conversation volume, split by track.
-struct WeekBucket: Identifiable, Equatable, Sendable {
-    let weekStart: Date
+/// One day's worth of conversation volume, split by track.
+struct DayBucket: Identifiable, Equatable, Sendable {
+    let day: Date
     var cold: Int
     var warm: Int
-    var id: Date { weekStart }
+    var id: Date { day }
 }
 
 @MainActor
@@ -13,7 +13,7 @@ struct WeekBucket: Identifiable, Equatable, Sendable {
 final class InsightsViewModel {
     private let repo: HiyaRepository
 
-    var weeks: [WeekBucket] = []
+    var days: [DayBucket] = []
     var strangers = 0
     var becameRegulars = 0
     var valence: (positive: Int, neutral: Int, negative: Int) = (0, 0, 0)
@@ -31,7 +31,7 @@ final class InsightsViewModel {
 
     var hasAnyData: Bool {
         !lessons.isEmpty || strangers > 0 || valence != (0, 0, 0) ||
-            weeks.contains { $0.cold > 0 || $0.warm > 0 }
+            days.contains { $0.cold > 0 || $0.warm > 0 }
     }
 
     func load() async {
@@ -45,7 +45,7 @@ final class InsightsViewModel {
             let conv = try await convResult
             let people = try await peopleResult
 
-            weeks = Self.weeklyActivity(from: conv, now: .now)
+            days = Self.dailyActivity(from: conv, now: .now)
             let c = Self.conversions(people: people, conversations: conv)
             strangers = c.strangers
             becameRegulars = c.became
@@ -58,23 +58,25 @@ final class InsightsViewModel {
 
     // MARK: - Pure computation (unit-tested)
 
-    /// `weekCount` buckets ending with the week containing `now`, oldest→newest,
-    /// zero-filled, each split into cold/warm conversation counts.
-    static func weeklyActivity(
+    /// `dayCount` daily buckets ending today, oldest→newest, zero-filled, each
+    /// split into cold/warm conversation counts. Default 56 days = the last 8 weeks.
+    static func dailyActivity(
         from conv: [LoggedConversation],
         now: Date,
-        weekCount: Int = 8,
+        dayCount: Int = 56,
         calendar: Calendar = .current
-    ) -> [WeekBucket] {
-        guard let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start else { return [] }
-        var buckets: [WeekBucket] = (0..<weekCount).reversed().compactMap { i in
-            calendar.date(byAdding: .weekOfYear, value: -i, to: thisWeekStart)
-                .map { WeekBucket(weekStart: $0, cold: 0, warm: 0) }
+    ) -> [DayBucket] {
+        let today = calendar.startOfDay(for: now)
+        var buckets: [DayBucket] = (0..<dayCount).reversed().compactMap { i in
+            calendar.date(byAdding: .day, value: -i, to: today)
+                .map { DayBucket(day: $0, cold: 0, warm: 0) }
         }
-        guard let earliest = buckets.first?.weekStart else { return buckets }
+        guard let earliest = buckets.first?.day else { return buckets }
+        var indexByDay: [Date: Int] = [:]
+        for (i, b) in buckets.enumerated() { indexByDay[b.day] = i }
         for c in conv where c.occurredAt >= earliest {
-            guard let ws = calendar.dateInterval(of: .weekOfYear, for: c.occurredAt)?.start,
-                  let idx = buckets.firstIndex(where: { $0.weekStart == ws }) else { continue }
+            let day = calendar.startOfDay(for: c.occurredAt)
+            guard let idx = indexByDay[day] else { continue }
             if c.wasColdAtTime { buckets[idx].cold += 1 } else { buckets[idx].warm += 1 }
         }
         return buckets

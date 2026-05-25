@@ -24,24 +24,26 @@ struct InsightsViewModelTests {
         )
     }
 
-    @Test func weeklyActivity_bucketsByWeekAndTrack() async throws {
+    @Test func dailyActivity_bucketsByDayAndTrack() async throws {
         let now = Date.now
-        // Shift by whole weeks so bucket placement is independent of weekday.
         let convs = [
-            conv(daysAgo: 0, wasCold: true),    // this week, cold
-            conv(daysAgo: 7, wasCold: false),   // 1 week ago, warm
-            conv(daysAgo: 21, wasCold: true),   // 3 weeks ago, cold
+            conv(daysAgo: 0, wasCold: true),    // today, cold
+            conv(daysAgo: 0, wasCold: true),    // today, another cold
+            conv(daysAgo: 7, wasCold: false),   // a week ago, warm
+            conv(daysAgo: 21, wasCold: true),   // three weeks ago, cold
+            conv(daysAgo: 200, wasCold: true),  // outside the 8-week window
         ]
 
-        let weeks = InsightsViewModel.weeklyActivity(from: convs, now: now)
+        let days = InsightsViewModel.dailyActivity(from: convs, now: now)
 
-        #expect(weeks.count == 8)
-        #expect(weeks.first!.weekStart < weeks.last!.weekStart, "oldest first")
-        #expect(weeks.last?.cold == 1, "this week has the cold log")
-        #expect(weeks[weeks.count - 2].warm == 1, "one week ago has the warm log")
-        // Totals across all buckets.
-        #expect(weeks.reduce(0) { $0 + $1.cold } == 2)
-        #expect(weeks.reduce(0) { $0 + $1.warm } == 1)
+        #expect(days.count == 56, "8 weeks of daily buckets")
+        #expect(days.first!.day < days.last!.day, "oldest first")
+        #expect(days.last?.cold == 2, "today has both cold logs")
+        #expect(days.last?.warm == 0)
+        #expect(days[days.count - 8].warm == 1, "seven days ago has the warm log")
+        // Totals: the 200-days-ago log is excluded.
+        #expect(days.reduce(0) { $0 + $1.cold } == 3)
+        #expect(days.reduce(0) { $0 + $1.warm } == 1)
     }
 
     @Test func conversions_countsStrangersAndGraduates() async throws {
