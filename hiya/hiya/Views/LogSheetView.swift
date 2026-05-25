@@ -82,76 +82,77 @@ struct LogSheetView: View {
                     .background(Theme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
             } else {
-                if !vm.targets.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            ForEach(vm.targets) { target in
-                                personChip(target)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-                TextField("Add a person", text: $vm.searchText)
-                    .font(Theme.FontScale.body())
-                    .foregroundColor(Theme.textPrimary)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .submitLabel(.done)
-                    .onSubmit { if vm.canAddTypedName { vm.addNew(vm.searchText) } }
-                    .padding(12)
-                    .background(Theme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-                if vm.canAddTypedName {
-                    Picker("How did you meet?", selection: $vm.origin) {
-                        Text("Cold approach").tag(PersonStatus.cold)
-                        Text("Already knew them").tag(PersonStatus.warm)
+                if vm.allowsQuickApproach {
+                    Picker("", selection: $vm.isQuickMode) {
+                        Text("Got a name").tag(false)
+                        Text("Quick (no name)").tag(true)
                     }
                     .pickerStyle(.segmented)
-                    .padding(.top, 4)
                 }
-                if !vm.filteredPeople.isEmpty || vm.canAddTypedName {
-                    VStack(spacing: Theme.Spacing.xs) {
-                        ForEach(vm.filteredPeople) { person in
-                            Button {
-                                vm.addExisting(person)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(person.name)
-                                        .font(Theme.FontScale.body())
-                                        .foregroundColor(Theme.textPrimary)
-                                    Text(personSubtitle(person))
-                                        .font(Theme.FontScale.micro())
-                                        .tracking(0.5)
-                                        .foregroundColor(Theme.textSecondary)
-                                        .lineLimit(1)
+                if !vm.isQuickApproach {
+                    if !vm.targets.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: Theme.Spacing.sm) {
+                                ForEach(vm.targets) { target in
+                                    personChip(target)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(Theme.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                             }
-                            .buttonStyle(.plain)
+                            .padding(.vertical, 2)
                         }
-                        if vm.canAddTypedName {
-                            Button {
-                                vm.addNew(vm.searchText)
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundColor(Theme.accentLavender)
-                                    Text("Add new \u{201C}\(vm.trimmedSearch)\u{201D}")
-                                        .font(Theme.FontScale.body())
-                                        .foregroundColor(Theme.textPrimary)
-                                    Spacer()
+                    }
+                    TextField("Add a person", text: $vm.searchText)
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .onSubmit { if vm.canAddTypedName { vm.addNew(vm.searchText) } }
+                        .padding(12)
+                        .background(Theme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                    if !vm.filteredPeople.isEmpty || vm.canAddTypedName {
+                        VStack(spacing: Theme.Spacing.xs) {
+                            ForEach(vm.filteredPeople) { person in
+                                Button {
+                                    vm.addExisting(person)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(person.name)
+                                            .font(Theme.FontScale.body())
+                                            .foregroundColor(Theme.textPrimary)
+                                        Text(personSubtitle(person))
+                                            .font(Theme.FontScale.micro())
+                                            .tracking(0.5)
+                                            .foregroundColor(Theme.textSecondary)
+                                            .lineLimit(1)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(Theme.surface)
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(Theme.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
+                            if vm.canAddTypedName {
+                                Button {
+                                    vm.addNew(vm.searchText)
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .foregroundColor(Theme.accentLavender)
+                                        Text("Add new \u{201C}\(vm.trimmedSearch)\u{201D}")
+                                            .font(Theme.FontScale.body())
+                                            .foregroundColor(Theme.textPrimary)
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(Theme.surface)
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
@@ -210,8 +211,7 @@ struct LogSheetView: View {
 
     private var quickApproachSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            sectionHeader("QUICK APPROACH")
-            Text("No name? Logs as a nameless approach — it still counts.")
+            Text("Nameless attempts that still count toward your Approaches.")
                 .font(Theme.FontScale.secondary())
                 .foregroundColor(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)

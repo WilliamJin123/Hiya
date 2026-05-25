@@ -356,14 +356,13 @@ struct LogSheetViewModelTests {
         #expect(vm.errorMessage != nil)
     }
 
-    // MARK: - Choosable origin (met_cold) + backdating
+    // MARK: - Mode-driven origin (met_cold) + backdating
 
-    @Test func newColdApproach_createsMetColdPerson() async throws {
+    @Test func coldMode_createsMetColdPerson() async throws {
         let repo = MockHiyaRepository()
         let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
         await vm.load()
         vm.searchText = "Angie"
-        #expect(vm.origin == .cold)
 
         let ok = await vm.save()
         #expect(ok)
@@ -372,12 +371,12 @@ struct LogSheetViewModelTests {
         #expect(angie?.status == .cold)
     }
 
-    @Test func alreadyKnew_createsWarmNotMetCold() async throws {
+    @Test func warmMode_createsWarmNotMetCold() async throws {
         let repo = MockHiyaRepository()
-        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        // Catch-ups mode = someone you already knew; no origin picker.
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
         await vm.load()
         vm.searchText = "Old Friend"
-        vm.origin = .warm
 
         let ok = await vm.save()
         #expect(ok)
@@ -422,7 +421,8 @@ struct LogSheetViewModelTests {
         let repo = MockHiyaRepository()
         let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
         await vm.load()
-        // Nothing typed or selected in Approaches mode → a quick approach.
+        #expect(vm.allowsQuickApproach)
+        vm.isQuickMode = true            // "Quick (no name)" toggle on
         #expect(vm.isQuickApproach)
         vm.quickApproachCount = 2
         vm.valence = .negative
@@ -436,11 +436,28 @@ struct LogSheetViewModelTests {
         #expect(listed.isEmpty)
     }
 
-    @Test func typedName_isNotQuickApproach() async throws {
+    @Test func gotAName_isNotQuickApproach() async throws {
         let repo = MockHiyaRepository()
         let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
         await vm.load()
+        // Default "Got a name" mode: not a quick approach, even before typing.
+        #expect(!vm.isQuickApproach)
         vm.searchText = "Sam"
         #expect(!vm.isQuickApproach)
+    }
+
+    @Test func quickApproach_notOfferedWhenEditingOrPreselected() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Angie", status: .warm)
+        let vm = LogSheetViewModel(repo: repo, preselectedPerson: p, creationMode: .cold)
+        await vm.load()
+        #expect(!vm.allowsQuickApproach, "a preselected person is a named log, not a quick approach")
+    }
+
+    @Test func warmMode_doesNotAllowQuickApproach() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
+        await vm.load()
+        #expect(!vm.allowsQuickApproach)
     }
 }

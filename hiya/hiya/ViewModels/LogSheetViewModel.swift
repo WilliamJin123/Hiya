@@ -17,13 +17,20 @@ final class LogSheetViewModel {
     /// How many nameless quick approaches to log in one save (e.g. a session of
     /// similar attempts). Only used on the quick-approach path.
     var quickApproachCount: Int = 1
+    /// In Approaches mode, whether the user is logging a nameless "quick approach"
+    /// rather than a named one. Toggled by the "Got a name / Quick" control.
+    var isQuickMode = false
     private(set) var editing: LoggedConversation?
 
-    /// How a *new* person is created: `.cold` = a cold approach (a brand-new
-    /// stranger; no existing-people suggestions; saved cold + `met_cold`), `.warm`
-    /// = someone you already knew (suggestions shown; saved warm, not met_cold).
-    /// Editable in the sheet when a new person is about to be created.
-    var origin: PersonStatus
+    /// The track this log is created in (from the Home mode): `.cold` = a cold
+    /// approach (saved cold + `met_cold`), `.warm` = someone you already knew
+    /// (suggestions shown; saved warm). The mode *is* the origin — there's no
+    /// separate picker.
+    private let origin: PersonStatus
+
+    /// Quick (nameless) approaches only make sense when starting a fresh cold
+    /// approach — not when editing or logging a specific (preselected) person.
+    let allowsQuickApproach: Bool
 
     private(set) var isLoading: Bool = false
     private(set) var isSaving: Bool = false
@@ -55,15 +62,16 @@ final class LogSheetViewModel {
         !trimmedSearch.isEmpty
     }
 
-    /// A nameless cold approach: Approaches mode with nobody named or selected.
-    /// Saving logs `quickApproachCount` anonymous quick approaches.
+    /// A nameless cold approach: the "Quick" toggle is on. Saving logs
+    /// `quickApproachCount` anonymous quick approaches.
     var isQuickApproach: Bool {
-        editing == nil && origin == .cold && targets.isEmpty && trimmedSearch.isEmpty
+        allowsQuickApproach && isQuickMode
     }
 
     var canSave: Bool {
         if editing != nil { return true }
-        return isQuickApproach || !targets.isEmpty || !trimmedSearch.isEmpty
+        if isQuickApproach { return true }
+        return !targets.isEmpty || !trimmedSearch.isEmpty
     }
 
     init(
@@ -75,6 +83,7 @@ final class LogSheetViewModel {
         self.repo = repo
         self.editing = editing
         self.origin = creationMode
+        self.allowsQuickApproach = creationMode == .cold && editing == nil && preselectedPerson == nil
         if let editing {
             searchText = editing.personName
             valence = editing.valence
@@ -141,6 +150,16 @@ final class LogSheetViewModel {
                     improvementNote: improvementToSend,
                     location: locationToSend
                 )
+            } else if isQuickApproach {
+                // Nameless quick approaches that still count toward the cold tally.
+                try await repo.logQuickApproach(
+                    count: quickApproachCount,
+                    occurredAt: occurredAt,
+                    valence: valence,
+                    note: noteToSend,
+                    location: locationToSend
+                )
+                return true
             } else {
                 // Fold any leftover typed text into a target so the fast
                 // "type one name and save" path still works.
@@ -158,19 +177,7 @@ final class LogSheetViewModel {
                         if !finalTargets.contains(where: { $0.id == t.id }) { finalTargets.append(t) }
                     }
                 }
-                if finalTargets.isEmpty {
-                    // No one named or selected in Approaches mode → log nameless
-                    // quick approaches that still count toward the cold tally.
-                    guard origin == .cold else { return false }
-                    try await repo.logQuickApproach(
-                        count: quickApproachCount,
-                        occurredAt: occurredAt,
-                        valence: valence,
-                        note: noteToSend,
-                        location: locationToSend
-                    )
-                    return true
-                }
+                guard !finalTargets.isEmpty else { return false }
 
                 // Resolve each target to a person id (creating new people).
                 var personIds: [UUID] = []
