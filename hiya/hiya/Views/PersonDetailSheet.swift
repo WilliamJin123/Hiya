@@ -82,7 +82,7 @@ struct PersonDetailSheet: View {
                     Text("JUST MET")
                         .font(Theme.FontScale.micro())
                         .tracking(1.2)
-                        .foregroundColor(Theme.accentAmber)
+                        .foregroundColor(Theme.coldAccent)
                 }
                 Text("Last seen \(relative(person.lastLoggedAt))")
                     .font(Theme.FontScale.secondary())

@@ -104,7 +104,7 @@ struct PeopleView: View {
                         Text("JUST MET")
                             .font(Theme.FontScale.bodyHeading())
                             .tracking(1.2)
-                            .foregroundColor(Theme.accentAmber)
+                            .foregroundColor(Theme.coldAccent)
                     }
                 }
                 if !vm.recurring.isEmpty {
@@ -203,10 +203,10 @@ private struct ConsistencyStrip: View {
 
     private func color(for day: StripDay) -> Color {
         switch day {
-        case .coldActive: Theme.accentAmber
-        case .coldIdle:   Theme.accentAmber.opacity(0.15)
-        case .warmActive: Theme.accentLavender
-        case .warmIdle:   Theme.accentLavender.opacity(0.15)
+        case .coldActive: Theme.coldAccent
+        case .coldIdle:   Theme.coldAccent.opacity(0.15)
+        case .warmActive: Theme.warmAccent
+        case .warmIdle:   Theme.warmAccent.opacity(0.15)
         }
     }
 }

@@ -195,8 +195,8 @@ struct AddChallengeSheet: View {
 
     private func trackColor(_ track: ChallengeTrack) -> Color {
         switch track {
-        case .cold: Theme.accentAmber
-        case .warm: Theme.accentLavender
+        case .cold: Theme.coldAccent
+        case .warm: Theme.warmAccent
         case .any:  Theme.textSecondary
         }
     }

@@ -127,7 +127,7 @@ struct LogSheetView: View {
                             } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "plus.circle.fill")
-                                        .foregroundColor(Theme.accentAmber)
+                                        .foregroundColor(Theme.accentLavender)
                                     Text("Add new \u{201C}\(vm.trimmedSearch)\u{201D}")
                                         .font(Theme.FontScale.body())
                                         .foregroundColor(Theme.textPrimary)

@@ -3,6 +3,7 @@ import SwiftUI
 struct ProgressRingView: View {
     let state: RingState
     var gradient: LinearGradient = Theme.accentGradient
+    var accent: Color = Theme.accentAmber
 
     @State private var burstToken = 0
     @State private var wasAtGoal = false
@@ -26,7 +27,7 @@ struct ProgressRingView: View {
         .shadow(color: glowColor, radius: Theme.Glow.blur, x: 0, y: 0)
         .overlay {
             if isAtGoal {
-                GoalBurst(color: Theme.accentAmber)
+                GoalBurst(color: accent)
                     .id(burstToken)
                     .allowsHitTesting(false)
             }
@@ -79,22 +80,22 @@ struct ProgressRingView: View {
             VStack(spacing: 4) {
                 Text("★")
                     .font(Theme.FontScale.goalStar())
-                    .foregroundColor(Theme.accentAmber)
+                    .foregroundColor(accent)
                 Text("\(goal) DONE")
                     .font(Theme.FontScale.micro())
                     .tracking(0.8)
-                    .foregroundColor(Theme.accentAmber)
+                    .foregroundColor(accent)
             }
         case .overload(let count, _, let extra):
             VStack(spacing: 4) {
                 Text("+\(extra)")
                     .font(Theme.FontScale.counterOverload())
-                    .foregroundColor(Theme.accentAmber)
+                    .foregroundColor(accent)
                     .contentTransition(.numericText())
                 Text("\(count) TOTAL")
                     .font(Theme.FontScale.micro())
                     .tracking(0.8)
-                    .foregroundColor(Theme.accentAmber)
+                    .foregroundColor(accent)
             }
         }
     }

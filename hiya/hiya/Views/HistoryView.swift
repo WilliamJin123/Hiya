@@ -174,13 +174,13 @@ struct HistoryView: View {
     private var legend: some View {
         HStack(spacing: Theme.Spacing.lg) {
             HStack(spacing: 6) {
-                Circle().fill(Theme.accentAmber).frame(width: 6, height: 6)
+                Circle().fill(Theme.coldAccent).frame(width: 6, height: 6)
                 Text("approaches")
                     .font(Theme.FontScale.micro())
                     .foregroundColor(Theme.textSecondary)
             }
             HStack(spacing: 6) {
-                Circle().fill(Theme.accentLavender).frame(width: 6, height: 6)
+                Circle().fill(Theme.warmAccent).frame(width: 6, height: 6)
                 Text("catch-ups")
                     .font(Theme.FontScale.micro())
                     .foregroundColor(Theme.textSecondary)
@@ -324,14 +324,14 @@ private struct DayCell: View {
     private var heatTint: Color {
         guard let s = section else { return .clear }
         let intensity = min(0.45, 0.18 + Double(s.totalCount - 1) * 0.06)
-        if s.hadCold { return Theme.accentAmber.opacity(intensity) }
-        return Theme.accentLavender.opacity(intensity)
+        if s.hadCold { return Theme.coldAccent.opacity(intensity) }
+        return Theme.warmAccent.opacity(intensity)
     }
 
     private var borderColor: Color {
         guard let s = section else { return .clear }
         if isToday { return Theme.textPrimary.opacity(0.6) }
-        if s.hadCold && hasWarm { return Theme.accentLavender.opacity(0.65) }
+        if s.hadCold && hasWarm { return Theme.warmAccent.opacity(0.65) }
         return .clear
     }
 
@@ -344,11 +344,11 @@ private struct DayCell: View {
                 HStack(spacing: 4) {
                     if s.coldCount > 0 {
                         Text("\(s.coldCount)")
-                            .foregroundColor(Theme.accentAmber)
+                            .foregroundColor(Theme.coldAccent)
                     }
                     if (s.totalCount - s.coldCount) > 0 {
                         Text("\(s.totalCount - s.coldCount)")
-                            .foregroundColor(Theme.accentLavender)
+                            .foregroundColor(Theme.warmAccent)
                     }
                 }
                 .font(Theme.FontScale.micro())
@@ -396,7 +396,7 @@ private struct DayHeader: View {
                 Text("\(section.coldCount) \(section.coldCount == 1 ? "approach" : "approaches")")
                     .font(Theme.FontScale.micro())
                     .tracking(0.8)
-                    .foregroundColor(Theme.accentAmber)
+                    .foregroundColor(Theme.coldAccent)
             }
             Text("\(section.uniquePeopleCount) · \(section.totalCount) log\(section.totalCount == 1 ? "" : "s")")
                 .font(Theme.FontScale.micro())

@@ -82,8 +82,8 @@ struct InsightsView: View {
                 }
             }
             .chartForegroundStyleScale([
-                "Approaches": Theme.accentAmber,
-                "Catch-ups": Theme.accentLavender
+                "Approaches": Theme.coldAccent,
+                "Catch-ups": Theme.warmAccent
             ])
             .chartLegend(position: .bottom, spacing: 8)
             .frame(height: 180)
@@ -95,7 +95,7 @@ struct InsightsView: View {
             HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
                 Text("\(vm.becameRegulars)")
                     .font(.custom(Theme.FontName.counterMono, size: 44).weight(.semibold))
-                    .foregroundColor(Theme.accentLavender)
+                    .foregroundColor(Theme.warmAccent)
                 Text("of \(vm.strangers) strangers\nbecame regulars")
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)
@@ -104,7 +104,7 @@ struct InsightsView: View {
                 Text("\(Int((vm.conversionRate * 100).rounded()))% conversion")
                     .font(Theme.FontScale.micro())
                     .tracking(0.8)
-                    .foregroundColor(Theme.accentAmber)
+                    .foregroundColor(Theme.coldAccent)
             }
         }
     }

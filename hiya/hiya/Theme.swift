@@ -44,6 +44,24 @@ enum Theme {
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
+    // MARK: - Semantic mode accents
+    //
+    // Approaches (cold) read cool; Catch-ups (warm) read warm. Neutral chrome
+    // (tab tint, buttons, gear) keeps using `accentLavender` directly — it is
+    // not a cold/warm signal. Flip both lines below to re-theme the modes.
+    static let coldAccent = accentLavender
+    static let warmAccent = accentAmber
+
+    static func accent(for status: PersonStatus) -> Color {
+        status == .cold ? coldAccent : warmAccent
+    }
+
+    /// Ring gradient per mode: each leads with its own mode's color. (Cold leads
+    /// lavender via `accentGradient`; warm leads amber via `accentGradientReversed`.)
+    static func gradient(for status: PersonStatus) -> LinearGradient {
+        status == .cold ? accentGradient : accentGradientReversed
+    }
+
     // MARK: - Font PostScript names
     //
     // Verify in Font Book (open the TTF, ⌘I on the selected face). If a name

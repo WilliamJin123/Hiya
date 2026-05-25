@@ -83,8 +83,8 @@ struct HomeView: View {
 
     private var modeToggle: some View {
         HStack(spacing: 4) {
-            modeButton(.cold, label: "Approaches", color: Theme.accentAmber)
-            modeButton(.warm, label: "Catch-ups", color: Theme.accentLavender)
+            modeButton(.cold, label: "Approaches", color: Theme.coldAccent)
+            modeButton(.warm, label: "Catch-ups", color: Theme.warmAccent)
         }
         .padding(4)
         .background(Capsule().fill(Theme.surface))
@@ -115,7 +115,8 @@ struct HomeView: View {
             VStack(spacing: Theme.Spacing.lg) {
                 ProgressRingView(
                     state: vm.ringState(for: pageMode),
-                    gradient: pageMode == .cold ? Theme.accentGradient : Theme.accentGradientReversed
+                    gradient: Theme.gradient(for: pageMode),
+                    accent: Theme.accent(for: pageMode)
                 )
                 streakLine(for: pageMode)
                 logButton(for: pageMode)
@@ -133,7 +134,7 @@ struct HomeView: View {
 
     private func streakLine(for pageMode: PersonStatus) -> some View {
         let value = pageMode == .cold ? vm.streaks.cold : vm.streaks.warm
-        let color = pageMode == .cold ? Theme.accentAmber : Theme.accentLavender
+        let color = Theme.accent(for: pageMode)
         let label = pageMode == .cold ? "day approach streak" : "day catch-up streak"
         let icon = pageMode == .cold ? "flame.fill" : "heart.fill"
         return HStack(spacing: Theme.Spacing.sm) {
@@ -153,7 +154,7 @@ struct HomeView: View {
     }
 
     private func logButton(for pageMode: PersonStatus) -> some View {
-        let accent = pageMode == .cold ? Theme.accentAmber : Theme.accentLavender
+        let accent = Theme.accent(for: pageMode)
         return Button {
             sheetMode = .create(preselect: nil, mode: pageMode)
         } label: {
@@ -204,7 +205,7 @@ struct HomeView: View {
     }
 
     private func challengeRow(_ challenge: Challenge) -> some View {
-        let accent = challenge.track == .warm ? Theme.accentLavender : Theme.accentAmber
+        let accent = challenge.track == .warm ? Theme.accentAmber : Theme.accentLavender
         return HStack(spacing: Theme.Spacing.md) {
             Image(systemName: "target")
                 .font(.system(size: 14, weight: .semibold))
