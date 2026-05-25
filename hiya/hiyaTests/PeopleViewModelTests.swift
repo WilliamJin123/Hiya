@@ -37,11 +37,12 @@ struct PeopleViewModelTests {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let pid = UUID()
         let other = UUID()
-        func conv(_ personId: UUID, daysAgo: Int) -> LoggedConversation {
+        func conv(_ personId: UUID, daysAgo: Int, wasCold: Bool = false) -> LoggedConversation {
             let d = cal.date(byAdding: .day, value: -daysAgo, to: now)!
             return LoggedConversation(
                 id: UUID(), personId: personId, personName: "X",
-                occurredAt: d, valence: nil, note: nil, improvementNote: nil
+                occurredAt: d, valence: nil, note: nil, improvementNote: nil,
+                wasColdAtTime: wasCold
             )
         }
 
@@ -53,11 +54,43 @@ struct PeopleViewModelTests {
             calendar: cal
         )
 
+        // No cold conversation in view, so the whole strip is the warm era.
         #expect(strip.count == 7)
-        #expect(strip[6] == true)   // today
-        #expect(strip[3] == true)   // 3 days ago
-        #expect(strip[5] == false)  // 1 day ago belongs to a different person
-        #expect(strip[0] == false)  // 6 days ago, no log
+        #expect(strip[6] == .warmActive)  // today
+        #expect(strip[3] == .warmActive)  // 3 days ago
+        #expect(strip[5] == .warmIdle)    // 1 day ago belongs to a different person
+        #expect(strip[0] == .warmIdle)    // 6 days ago, no log
+    }
+
+    @Test func activityStrip_amberEraEndsAtColdFirstMeeting() {
+        let cal = Calendar.current
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let pid = UUID()
+        func conv(_ daysAgo: Int, wasCold: Bool) -> LoggedConversation {
+            let d = cal.date(byAdding: .day, value: -daysAgo, to: now)!
+            return LoggedConversation(
+                id: UUID(), personId: pid, personName: "X",
+                occurredAt: d, valence: nil, note: nil, improvementNote: nil,
+                wasColdAtTime: wasCold
+            )
+        }
+
+        // Met cold 4 days ago (index 2), warm catch-up today (index 6).
+        let strip = PeopleViewModel.activityStrip(
+            personId: pid,
+            conversations: [conv(4, wasCold: true), conv(0, wasCold: false)],
+            days: 7,
+            now: now,
+            calendar: cal
+        )
+
+        #expect(strip.count == 7)
+        #expect(strip[0] == .coldIdle)    // 6 days ago — before the meeting
+        #expect(strip[1] == .coldIdle)    // 5 days ago — before the meeting
+        #expect(strip[2] == .coldActive)  // 4 days ago — the cold first meeting
+        #expect(strip[3] == .warmIdle)    // after the meeting, no contact
+        #expect(strip[5] == .warmIdle)    // after the meeting, no contact
+        #expect(strip[6] == .warmActive)  // today — warm catch-up
     }
 
     @Test func addPerson_createsWarmPerson_inRecurring() async throws {

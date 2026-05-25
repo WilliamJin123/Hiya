@@ -1,6 +1,17 @@
 import Foundation
 import Observation
 
+/// One day in a person's consistency strip. Hue marks the era — amber for the
+/// cold first meeting (and the empty days before it), lavender for the warm
+/// catch-ups that follow — while the active/idle split marks whether a
+/// conversation actually happened that day.
+enum StripDay: Equatable {
+    case coldActive   // the first (cold) meeting
+    case coldIdle     // a day before the first meeting — no contact
+    case warmActive   // a catch-up after the first meeting
+    case warmIdle     // a quiet day after the first meeting — no contact
+}
+
 @MainActor
 @Observable
 final class PeopleViewModel {
@@ -43,8 +54,10 @@ final class PeopleViewModel {
     }
 
     /// Per-day contact history for a person over the last `stripDays`, ordered
-    /// oldest → newest. `true` means at least one logged conversation that day.
-    func activityStrip(for person: Person, now: Date = .now, calendar: Calendar = .current) -> [Bool] {
+    /// oldest → newest. Hue marks the era (amber = the cold first meeting and
+    /// the days leading up to it, lavender = every warm catch-up after);
+    /// brightness marks whether a conversation actually happened that day.
+    func activityStrip(for person: Person, now: Date = .now, calendar: Calendar = .current) -> [StripDay] {
         Self.activityStrip(
             personId: person.id,
             conversations: recentConversations,
@@ -60,16 +73,29 @@ final class PeopleViewModel {
         days: Int,
         now: Date = .now,
         calendar: Calendar = .current
-    ) -> [Bool] {
+    ) -> [StripDay] {
         let today = calendar.startOfDay(for: now)
-        let loggedDays = Set(
-            conversations
-                .filter { $0.personId == personId }
-                .map { calendar.startOfDay(for: $0.occurredAt) }
-        )
+        let mine = conversations.filter { $0.personId == personId }
+        let loggedDays = Set(mine.map { calendar.startOfDay(for: $0.occurredAt) })
+        // The cold first meeting visible in this window, if any: the earliest
+        // day the person was still cold. Everything on/before it is the amber
+        // era; everything after is the warm (lavender) catch-up era. With no
+        // cold day in view, the whole window is the warm era.
+        let firstMeetingDay = mine
+            .filter { $0.wasColdAtTime }
+            .map { calendar.startOfDay(for: $0.occurredAt) }
+            .min()
+
         return (0..<days).reversed().map { offset in
             let day = calendar.date(byAdding: .day, value: -offset, to: today) ?? today
-            return loggedDays.contains(day)
+            let active = loggedDays.contains(day)
+            let coldEra = firstMeetingDay.map { day <= $0 } ?? false
+            switch (coldEra, active) {
+            case (true, true):   return .coldActive
+            case (true, false):  return .coldIdle
+            case (false, true):  return .warmActive
+            case (false, false): return .warmIdle
+            }
         }
     }
 

@@ -98,7 +98,7 @@ struct PeopleView: View {
                 if !vm.justMet.isEmpty {
                     Section {
                         ForEach(vm.justMet) { person in
-                            personRowButton(person, accent: Theme.accentAmber)
+                            personRowButton(person)
                         }
                     } header: {
                         Text("JUST MET")
@@ -110,7 +110,7 @@ struct PeopleView: View {
                 if !vm.recurring.isEmpty {
                     Section {
                         ForEach(vm.recurring) { person in
-                            personRowButton(person, accent: Theme.accentLavender)
+                            personRowButton(person)
                         }
                     } header: {
                         Text("PEOPLE")
@@ -126,11 +126,11 @@ struct PeopleView: View {
     }
 
     @ViewBuilder
-    private func personRowButton(_ person: Person, accent: Color) -> some View {
+    private func personRowButton(_ person: Person) -> some View {
         Button {
             editing = person
         } label: {
-            PersonRow(person: person, strip: vm.activityStrip(for: person), accent: accent)
+            PersonRow(person: person, strip: vm.activityStrip(for: person))
         }
         .buttonStyle(.plain)
         .listRowBackground(Theme.surface)
@@ -147,8 +147,7 @@ struct PeopleView: View {
 
 private struct PersonRow: View {
     let person: Person
-    let strip: [Bool]
-    let accent: Color
+    let strip: [StripDay]
 
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
@@ -169,7 +168,7 @@ private struct PersonRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            ConsistencyStrip(days: strip, accent: accent)
+            ConsistencyStrip(days: strip)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -185,20 +184,29 @@ private struct PersonRow: View {
     }
 }
 
-/// Compact 14-day contact history — one bar per day, oldest → newest. Filled
-/// bars use the section's accent; empty days fade it back, so the rhythm of how
-/// often you've been in touch reads at a glance.
+/// Compact 14-day contact history — one bar per day, oldest → newest. The cold
+/// first meeting (and the empty days before it) read amber; every warm catch-up
+/// after reads lavender. Filled bars are bright, quiet days fade back, so both
+/// the cold→warm arc and the rhythm of contact read at a glance.
 private struct ConsistencyStrip: View {
-    let days: [Bool]
-    let accent: Color
+    let days: [StripDay]
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(Array(days.enumerated()), id: \.offset) { _, active in
+            ForEach(Array(days.enumerated()), id: \.offset) { _, day in
                 Capsule()
-                    .fill(active ? accent : accent.opacity(0.15))
+                    .fill(color(for: day))
                     .frame(width: 3, height: 14)
             }
+        }
+    }
+
+    private func color(for day: StripDay) -> Color {
+        switch day {
+        case .coldActive: Theme.accentAmber
+        case .coldIdle:   Theme.accentAmber.opacity(0.15)
+        case .warmActive: Theme.accentLavender
+        case .warmIdle:   Theme.accentLavender.opacity(0.15)
         }
     }
 }
