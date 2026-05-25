@@ -21,6 +21,7 @@ struct PeopleView: View {
         }
         .navigationTitle("People")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $vm.searchText, prompt: "Search people")
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -87,6 +88,16 @@ struct PeopleView: View {
             VStack(spacing: Theme.Spacing.sm) {
                 Spacer()
                 Text("Nobody yet.\nLog a conversation to get started.")
+                    .multilineTextAlignment(.center)
+                    .font(Theme.FontScale.secondary())
+                    .foregroundColor(Theme.textSecondary)
+                Spacer()
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+        } else if vm.justMet.isEmpty && vm.recurring.isEmpty {
+            VStack(spacing: Theme.Spacing.sm) {
+                Spacer()
+                Text("No people match \u{201C}\(vm.searchText)\u{201D}.")
                     .multilineTextAlignment(.center)
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)

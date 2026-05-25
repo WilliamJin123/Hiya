@@ -20,6 +20,7 @@ final class PeopleViewModel {
     private(set) var recentConversations: [LoggedConversation] = []
     private(set) var isLoading: Bool = false
     var errorMessage: String?
+    var searchText: String = ""
 
     /// Number of days shown in a person's consistency strip.
     static let stripDays = 14
@@ -28,13 +29,19 @@ final class PeopleViewModel {
         self.repo = repo
     }
 
+    static func matches(_ p: Person, query: String) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if q.isEmpty { return true }
+        return p.name.lowercased().contains(q) || (p.notes?.lowercased().contains(q) ?? false)
+    }
+
     var justMet: [Person] {
-        people.filter { $0.status == .cold }
+        people.filter { $0.status == .cold && Self.matches($0, query: searchText) }
             .sorted { $0.lastLoggedAt > $1.lastLoggedAt }
     }
 
     var recurring: [Person] {
-        people.filter { $0.status == .warm }
+        people.filter { $0.status == .warm && Self.matches($0, query: searchText) }
             .sorted { $0.lastLoggedAt > $1.lastLoggedAt }
     }
 

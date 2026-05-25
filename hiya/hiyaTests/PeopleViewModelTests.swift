@@ -156,6 +156,26 @@ struct PeopleViewModelTests {
         #expect(repo.conversations.isEmpty, "deleting a person should cascade-delete their conversations")
     }
 
+    @Test func matches_nameAndNoteCaseInsensitive() {
+        let p = Person(id: UUID(), ownerId: UUID(), name: "Angie",
+                       status: .warm, statusChangedAt: .now,
+                       notes: "climbing gym", createdAt: .now, lastLoggedAt: .now)
+        #expect(PeopleViewModel.matches(p, query: ""))
+        #expect(PeopleViewModel.matches(p, query: "ang"))
+        #expect(PeopleViewModel.matches(p, query: "GYM"))
+        #expect(!PeopleViewModel.matches(p, query: "zzz"))
+    }
+
+    @Test func search_filtersJustMetAndRecurring() async throws {
+        let repo = MockHiyaRepository()
+        _ = try await repo.createPerson(name: "Angie", status: .warm)
+        _ = try await repo.createPerson(name: "Bob", status: .warm)
+        let vm = PeopleViewModel(repo: repo)
+        await vm.load()
+        vm.searchText = "ang"
+        #expect(vm.recurring.map(\.name) == ["Angie"])
+    }
+
     @Test func load_setsErrorOnFailure() async {
         let repo = MockHiyaRepository()
         repo.errorToThrow = NSError(domain: "test", code: 1)
