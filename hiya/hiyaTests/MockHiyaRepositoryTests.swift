@@ -461,4 +461,47 @@ struct MockHiyaRepositoryTests {
         let listed = try await repo.listPeople()
         #expect(listed.isEmpty, "anonymous people never show in the People list")
     }
+
+    // MARK: - Accounts
+
+    @Test func defaultAccount_isAnonymous() async {
+        let repo = MockHiyaRepository()
+        let acct = await repo.currentAccount()
+        #expect(acct?.isAnonymous == true)
+        #expect(acct?.email == nil)
+    }
+
+    @Test func claimAccount_keepsIdMakesPermanent_setsName() async throws {
+        let repo = MockHiyaRepository()
+        let before = await repo.currentAccount()
+        let profile = try await repo.claimAccount(email: "w@x.com", password: "secret1", displayName: "William Jin")
+        let after = await repo.currentAccount()
+        #expect(after?.isAnonymous == false)
+        #expect(after?.email == "w@x.com")
+        #expect(after?.id == before?.id, "claim must preserve the user id so data stays owned")
+        #expect(profile.displayName == "William Jin")
+    }
+
+    @Test func signOut_thenCurrentAccountIsNil() async throws {
+        let repo = MockHiyaRepository()
+        try await repo.signOut()
+        let acct = await repo.currentAccount()
+        #expect(acct == nil)
+    }
+
+    @Test func signIn_restoresPermanentAccount() async throws {
+        let repo = MockHiyaRepository()
+        try await repo.signOut()
+        _ = try await repo.signIn(email: "w@x.com", password: "secret1")
+        let acct = await repo.currentAccount()
+        #expect(acct?.isAnonymous == false)
+        #expect(acct?.email == "w@x.com")
+    }
+
+    @Test func updateDisplayName_persists() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.updateDisplayName("Will")
+        #expect(p.displayName == "Will")
+        #expect(repo.profile.displayName == "Will")
+    }
 }

@@ -1,7 +1,19 @@
 import Foundation
 
+struct AuthAccount: Equatable, Sendable {
+    let id: UUID
+    let email: String?
+    let isAnonymous: Bool
+}
+
 protocol HiyaRepository: Sendable {
     func ensureSignedIn() async throws -> Profile
+    func currentAccount() async -> AuthAccount?
+    func claimAccount(email: String, password: String, displayName: String) async throws -> Profile
+    func signUp(email: String, password: String, displayName: String) async throws -> Profile
+    func signIn(email: String, password: String) async throws -> Profile
+    func signOut() async throws
+    func updateDisplayName(_ name: String) async throws -> Profile
     func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile
     func listPeople() async throws -> [Person]
     func createPerson(name: String, status: PersonStatus, notes: String?, metCold: Bool?, anonymous: Bool) async throws -> Person
@@ -130,6 +142,45 @@ final class LiveHiyaRepository: HiyaRepository {
             .execute()
             .value
         return profile
+    }
+
+    func currentAccount() async -> AuthAccount? {
+        guard client.auth.currentSession != nil else { return nil }
+        guard let user = try? await client.auth.user() else { return nil }
+        return AuthAccount(id: user.id, email: user.email, isAnonymous: user.isAnonymous)
+    }
+
+    func claimAccount(email: String, password: String, displayName: String) async throws -> Profile {
+        // Attach credentials to the *current* (anonymous) user — same id, data preserved.
+        try await client.auth.update(user: UserAttributes(email: email, password: password))
+        return try await updateDisplayName(displayName)
+    }
+
+    func signUp(email: String, password: String, displayName: String) async throws -> Profile {
+        try await client.auth.signUp(email: email, password: password)
+        return try await updateDisplayName(displayName)
+    }
+
+    func signIn(email: String, password: String) async throws -> Profile {
+        try await client.auth.signIn(email: email, password: password)
+        return try await ensureSignedIn()   // session now exists → fetches that user's profile
+    }
+
+    func signOut() async throws {
+        try await client.auth.signOut()
+    }
+
+    func updateDisplayName(_ name: String) async throws -> Profile {
+        let userId = try await client.auth.user().id
+        struct Update: Encodable { let display_name: String }
+        return try await client
+            .from("profiles")
+            .update(Update(display_name: name))
+            .eq("id", value: userId)
+            .select()
+            .single()
+            .execute()
+            .value
     }
 
     func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile {

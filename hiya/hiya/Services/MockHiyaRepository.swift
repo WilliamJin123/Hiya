@@ -7,6 +7,7 @@ final class MockHiyaRepository: HiyaRepository {
     var conversations: [Conversation]
     var challengeRows: [Challenge] = []
     var personNoteRows: [PersonNote] = []
+    var authAccount: AuthAccount?
 
     var errorToThrow: Error?
 
@@ -18,10 +19,47 @@ final class MockHiyaRepository: HiyaRepository {
         self.profile = profile
         self.people = people
         self.conversations = conversations
+        self.authAccount = AuthAccount(id: profile.id, email: nil, isAnonymous: true)
     }
 
     func ensureSignedIn() async throws -> Profile {
         if let err = errorToThrow { errorToThrow = nil; throw err }
+        if authAccount == nil {
+            authAccount = AuthAccount(id: profile.id, email: nil, isAnonymous: true)
+        }
+        return profile
+    }
+
+    func currentAccount() async -> AuthAccount? { authAccount }
+
+    func claimAccount(email: String, password: String, displayName: String) async throws -> Profile {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        authAccount = AuthAccount(id: profile.id, email: email, isAnonymous: false)
+        profile.displayName = displayName
+        return profile
+    }
+
+    func signUp(email: String, password: String, displayName: String) async throws -> Profile {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        authAccount = AuthAccount(id: profile.id, email: email, isAnonymous: false)
+        profile.displayName = displayName
+        return profile
+    }
+
+    func signIn(email: String, password: String) async throws -> Profile {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        authAccount = AuthAccount(id: profile.id, email: email, isAnonymous: false)
+        return profile
+    }
+
+    func signOut() async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        authAccount = nil
+    }
+
+    func updateDisplayName(_ name: String) async throws -> Profile {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        profile.displayName = name
         return profile
     }
 
