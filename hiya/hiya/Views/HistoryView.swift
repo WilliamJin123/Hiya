@@ -4,6 +4,7 @@ struct HistoryView: View {
     let repo: HiyaRepository
     @State private var vm: HistoryViewModel
     @State private var editing: LoggedConversation?
+    @State private var searchText = ""
     @State private var viewMode: ViewMode = .list
     @State private var displayedMonth: Date = .now
     /// nil = show every day grouped; a date = show only that day's logs.
@@ -18,16 +19,21 @@ struct HistoryView: View {
         ZStack {
             Theme.bgGradient.ignoresSafeArea()
             VStack(spacing: Theme.Spacing.md) {
-                viewModePicker
-                if viewMode == .list {
-                    listContent
+                if searchText.isEmpty {
+                    viewModePicker
+                    if viewMode == .list {
+                        listContent
+                    } else {
+                        calendarContent
+                    }
                 } else {
-                    calendarContent
+                    searchResultsContent
                 }
             }
         }
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "Search location, note, or person")
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await vm.load() }
         .refreshable { await vm.load() }
@@ -85,6 +91,29 @@ struct HistoryView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var searchResultsContent: some View {
+        let results = vm.searchResults(query: searchText)
+        if results.isEmpty {
+            emptyState(message: "No interactions match \u{201C}\(searchText)\u{201D}.")
+        } else {
+            List {
+                ForEach(results) { entry in
+                    Button {
+                        editing = entry
+                    } label: {
+                        SearchResultRow(entry: entry)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Theme.surface)
+                    .listRowSeparatorTint(Theme.divider)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
     }
 
@@ -402,6 +431,51 @@ private struct DayHeader: View {
                 .foregroundColor(Theme.textSecondary)
         }
         .padding(.vertical, Theme.Spacing.xs)
+    }
+}
+
+private struct SearchResultRow: View {
+    let entry: LoggedConversation
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Circle().fill(valenceColor).frame(width: 9, height: 9)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.personName)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                if let location = entry.location, !location.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle").font(.system(size: 11))
+                        Text(location).lineLimit(1)
+                    }
+                    .font(Theme.FontScale.micro())
+                    .foregroundColor(Theme.textSecondary)
+                }
+                if let note = entry.note, !note.isEmpty {
+                    Text(note)
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .lineLimit(2)
+                }
+            }
+            Spacer()
+            Text(entry.occurredAt.formatted(date: .abbreviated, time: .omitted))
+                .font(Theme.FontScale.micro())
+                .tracking(0.5)
+                .foregroundColor(Theme.textSecondary)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private var valenceColor: Color {
+        switch entry.valence {
+        case .positive: Theme.valencePositive
+        case .neutral:  Theme.valenceNeutral
+        case .negative: Theme.valenceNegative
+        case .none:     Theme.valenceNone
+        }
     }
 }
 

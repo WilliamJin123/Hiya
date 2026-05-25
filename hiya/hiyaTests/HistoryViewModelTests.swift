@@ -77,4 +77,27 @@ struct HistoryViewModelTests {
 
         #expect(vm.errorMessage != nil)
     }
+
+    @Test func search_matchesLocationNoteOrPerson_caseInsensitive_newestFirst() {
+        func log(_ person: String, _ note: String?, _ location: String?, daysAgo: Int) -> LoggedConversation {
+            LoggedConversation(
+                id: UUID(), personId: UUID(), personName: person,
+                occurredAt: Calendar.current.date(byAdding: .day, value: -daysAgo, to: .now)!,
+                valence: nil, note: note, improvementNote: nil, location: location
+            )
+        }
+        let logs = [
+            log("Angie", "great chat", "Blue Bottle", daysAgo: 2),
+            log("Bob", "at E7", nil, daysAgo: 1),
+            log("Cara", nil, "e7 climbing", daysAgo: 0),
+        ]
+
+        let byLocation = HistoryViewModel.search(logs, query: "e7")
+        #expect(byLocation.map(\.personName) == ["Cara", "Bob"], "newest first; matches location and note")
+
+        let byPerson = HistoryViewModel.search(logs, query: "ANGIE")
+        #expect(byPerson.map(\.personName) == ["Angie"])
+
+        #expect(HistoryViewModel.search(logs, query: "  ").isEmpty, "blank query → no results")
+    }
 }

@@ -37,6 +37,24 @@ final class HistoryViewModel {
         }
     }
 
+    var allEntries: [LoggedConversation] { sections.flatMap(\.entries) }
+
+    func searchResults(query: String) -> [LoggedConversation] {
+        Self.search(allEntries, query: query)
+    }
+
+    static func search(_ logs: [LoggedConversation], query: String) -> [LoggedConversation] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return [] }
+        return logs
+            .filter {
+                ($0.location?.lowercased().contains(q) ?? false) ||
+                ($0.note?.lowercased().contains(q) ?? false) ||
+                $0.personName.lowercased().contains(q)
+            }
+            .sorted { $0.occurredAt > $1.occurredAt }
+    }
+
     static func groupByDay(
         _ logs: [LoggedConversation],
         calendar: Calendar = .current
