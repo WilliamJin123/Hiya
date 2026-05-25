@@ -86,7 +86,11 @@ final class InsightsViewModel {
         people: [Person],
         conversations conv: [LoggedConversation]
     ) -> (strangers: Int, became: Int) {
-        let coldPersonIds = Set(conv.filter { $0.wasColdAtTime }.map(\.personId))
+        // Only real, named people count as "strangers" in the conversion funnel —
+        // nameless quick approaches (excluded from `people`) are cold attempts, not
+        // relationship prospects, so they must not inflate the denominator.
+        let realIds = Set(people.map(\.id))
+        let coldPersonIds = Set(conv.filter { $0.wasColdAtTime }.map(\.personId)).intersection(realIds)
         let warmIds = Set(people.filter { $0.status == .warm }.map(\.id))
         let became = coldPersonIds.filter { warmIds.contains($0) }.count
         return (coldPersonIds.count, became)

@@ -34,10 +34,10 @@ final class MockHiyaRepository: HiyaRepository {
 
     func listPeople() async throws -> [Person] {
         if let err = errorToThrow { errorToThrow = nil; throw err }
-        return people.sorted { $0.lastLoggedAt > $1.lastLoggedAt }
+        return people.filter { !$0.anonymous }.sorted { $0.lastLoggedAt > $1.lastLoggedAt }
     }
 
-    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil, metCold: Bool? = nil) async throws -> Person {
+    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil, metCold: Bool? = nil, anonymous: Bool = false) async throws -> Person {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         let seed = (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil
@@ -51,6 +51,7 @@ final class MockHiyaRepository: HiyaRepository {
             statusChangedAt: status == .warm ? .now : nil,
             notes: seed,
             metCold: resolvedMetCold,
+            anonymous: anonymous,
             createdAt: .now,
             lastLoggedAt: .now
         )
@@ -286,7 +287,7 @@ final class MockHiyaRepository: HiyaRepository {
         let threshold = Calendar.current.date(byAdding: .day, value: -thresholdDays, to: .now) ?? .now
         return Array(
             people
-                .filter { $0.status == .warm && $0.lastLoggedAt < threshold }
+                .filter { $0.status == .warm && !$0.anonymous && $0.lastLoggedAt < threshold }
                 .sorted { $0.lastLoggedAt < $1.lastLoggedAt }
                 .prefix(limit)
         )

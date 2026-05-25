@@ -14,6 +14,9 @@ final class LogSheetViewModel {
     var improvementNote: String = ""
     var location: String = ""
     var occurredAt: Date = .now
+    /// How many nameless quick approaches to log in one save (e.g. a session of
+    /// similar attempts). Only used on the quick-approach path.
+    var quickApproachCount: Int = 1
     private(set) var editing: LoggedConversation?
 
     /// How a *new* person is created: `.cold` = a cold approach (a brand-new
@@ -52,9 +55,15 @@ final class LogSheetViewModel {
         !trimmedSearch.isEmpty
     }
 
+    /// A nameless cold approach: Approaches mode with nobody named or selected.
+    /// Saving logs `quickApproachCount` anonymous quick approaches.
+    var isQuickApproach: Bool {
+        editing == nil && origin == .cold && targets.isEmpty && trimmedSearch.isEmpty
+    }
+
     var canSave: Bool {
         if editing != nil { return true }
-        return !targets.isEmpty || !trimmedSearch.isEmpty
+        return isQuickApproach || !targets.isEmpty || !trimmedSearch.isEmpty
     }
 
     init(
@@ -149,7 +158,19 @@ final class LogSheetViewModel {
                         if !finalTargets.contains(where: { $0.id == t.id }) { finalTargets.append(t) }
                     }
                 }
-                guard !finalTargets.isEmpty else { return false }
+                if finalTargets.isEmpty {
+                    // No one named or selected in Approaches mode → log nameless
+                    // quick approaches that still count toward the cold tally.
+                    guard origin == .cold else { return false }
+                    try await repo.logQuickApproach(
+                        count: quickApproachCount,
+                        occurredAt: occurredAt,
+                        valence: valence,
+                        note: noteToSend,
+                        location: locationToSend
+                    )
+                    return true
+                }
 
                 // Resolve each target to a person id (creating new people).
                 var personIds: [UUID] = []
@@ -162,7 +183,7 @@ final class LogSheetViewModel {
                         // which differentiates same-named people later. New people
                         // take the log's track: cold = just-met stranger, warm =
                         // someone you already knew.
-                        let created = try await repo.createPerson(name: name, status: origin, notes: noteToSend, metCold: origin == .cold)
+                        let created = try await repo.createPerson(name: name, status: origin, notes: noteToSend, metCold: origin == .cold, anonymous: false)
                         personIds.append(created.id)
                     }
                 }

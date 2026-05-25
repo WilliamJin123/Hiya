@@ -66,6 +66,27 @@ struct InsightsViewModelTests {
         #expect(result.became == 1, "only the graduate is now warm")
     }
 
+    @Test func conversions_excludeNamelessQuickApproaches() {
+        let real = UUID()
+        let anonA = UUID()
+        let anonB = UUID()
+        // Anonymous quick-approach people are excluded from listPeople, so they
+        // never appear in `people` — only the real named person does.
+        let people = [
+            Person(id: real, ownerId: UUID(), name: "Real", status: .warm, statusChangedAt: .now, createdAt: .now, lastLoggedAt: .now),
+        ]
+        let convs = [
+            conv(personId: real, wasCold: true),
+            conv(personId: anonA, wasCold: true),
+            conv(personId: anonB, wasCold: true),
+        ]
+
+        let result = InsightsViewModel.conversions(people: people, conversations: convs)
+
+        #expect(result.strangers == 1, "nameless quick approaches don't count as strangers")
+        #expect(result.became == 1)
+    }
+
     @Test func valenceBreakdown_talliesAndIgnoresNil() async throws {
         let convs = [
             conv(valence: .positive), conv(valence: .positive),

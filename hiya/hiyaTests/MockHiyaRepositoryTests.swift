@@ -448,4 +448,17 @@ struct MockHiyaRepositoryTests {
         let history = try await repo.personConversations(personId: p.id)
         #expect(history.first?.location == "The Gym")
     }
+
+    @Test func logQuickApproach_logsCountedNamelessColdApproaches() async throws {
+        let repo = MockHiyaRepository()
+        try await repo.logQuickApproach(count: 2, occurredAt: .now, valence: .negative, note: nil, location: "e7")
+
+        #expect(repo.conversations.count == 2)
+        #expect(repo.conversations.allSatisfy { $0.wasColdAtTime }, "quick approaches are cold")
+        #expect(repo.conversations.allSatisfy { $0.location == "e7" })
+        #expect(repo.people.count == 2)
+        #expect(repo.people.allSatisfy { $0.anonymous })
+        let listed = try await repo.listPeople()
+        #expect(listed.isEmpty, "anonymous people never show in the People list")
+    }
 }

@@ -29,6 +29,9 @@ struct LogSheetView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                         personSection
+                        if vm.isQuickApproach {
+                            quickApproachSection
+                        }
                         whenSection
                         whereSection
                         valenceSection
@@ -205,6 +208,32 @@ struct LogSheetView: View {
         }
     }
 
+    private var quickApproachSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("QUICK APPROACH")
+            Text("No name? Logs as a nameless approach — it still counts.")
+                .font(Theme.FontScale.secondary())
+                .foregroundColor(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Stepper(value: $vm.quickApproachCount, in: 1...20) {
+                HStack {
+                    Text("How many?")
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    Spacer()
+                    Text("\(vm.quickApproachCount)")
+                        .font(.custom(Theme.FontName.counterMono, size: 18).weight(.semibold))
+                        .foregroundColor(Theme.coldAccent)
+                        .contentTransition(.numericText())
+                }
+            }
+            .tint(Theme.accentLavender)
+            .padding(12)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        }
+    }
+
     private var whereSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             sectionHeader("WHERE (OPTIONAL)")
@@ -314,7 +343,7 @@ struct LogSheetView: View {
                 }
             }
         } label: {
-            Text(vm.editing == nil ? "Save" : "Update")
+            Text(saveButtonTitle)
                 .font(Theme.FontScale.body())
                 .foregroundColor(vm.canSave ? Theme.textOnAccent : Theme.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -358,6 +387,11 @@ struct LogSheetView: View {
         } message: {
             Text("This can't be undone.")
         }
+    }
+
+    private var saveButtonTitle: String {
+        if vm.editing != nil { return "Update" }
+        return vm.isQuickApproach ? "Log quick approach" : "Save"
     }
 
     private func sectionHeader(_ text: String) -> some View {

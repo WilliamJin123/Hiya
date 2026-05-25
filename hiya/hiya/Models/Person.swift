@@ -8,6 +8,7 @@ struct Person: Codable, Sendable, Identifiable, Equatable, Hashable {
     var statusChangedAt: Date?
     var notes: String? = nil
     var metCold: Bool = false
+    var anonymous: Bool = false
     let createdAt: Date
     var lastLoggedAt: Date
 
@@ -19,6 +20,7 @@ struct Person: Codable, Sendable, Identifiable, Equatable, Hashable {
         case statusChangedAt = "status_changed_at"
         case notes
         case metCold = "met_cold"
+        case anonymous
         case createdAt = "created_at"
         case lastLoggedAt = "last_logged_at"
     }

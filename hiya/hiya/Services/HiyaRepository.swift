@@ -4,7 +4,7 @@ protocol HiyaRepository: Sendable {
     func ensureSignedIn() async throws -> Profile
     func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile
     func listPeople() async throws -> [Person]
-    func createPerson(name: String, status: PersonStatus, notes: String?, metCold: Bool?) async throws -> Person
+    func createPerson(name: String, status: PersonStatus, notes: String?, metCold: Bool?, anonymous: Bool) async throws -> Person
     func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
     func personConversations(personId: UUID) async throws -> [LoggedConversation]
     func logConversation(
@@ -40,6 +40,38 @@ protocol HiyaRepository: Sendable {
     func startChallenge(_ draft: ChallengeDraft) async throws -> Challenge
     func completeChallenge(id: UUID) async throws
     func abandonChallenge(id: UUID) async throws
+}
+
+extension HiyaRepository {
+    /// Log one or more nameless "quick approaches" — cold approaches that went
+    /// nowhere (no name exchanged). Each is its own hidden anonymous person so it
+    /// counts toward the Approaches tally; none appear in the People list. Built
+    /// on the existing create/log primitives, so both Live and Mock get it free.
+    func logQuickApproach(
+        count: Int,
+        occurredAt: Date,
+        valence: Conversation.Valence?,
+        note: String?,
+        location: String?
+    ) async throws {
+        for _ in 0..<max(1, count) {
+            let person = try await createPerson(
+                name: "Quick approach",
+                status: .cold,
+                notes: nil,
+                metCold: true,
+                anonymous: true
+            )
+            try await logConversation(
+                personId: person.id,
+                occurredAt: occurredAt,
+                valence: valence,
+                note: note,
+                improvementNote: nil,
+                location: location
+            )
+        }
+    }
 }
 
 struct LoggedConversation: Identifiable, Sendable, Equatable {
@@ -120,12 +152,13 @@ final class LiveHiyaRepository: HiyaRepository {
         try await client
             .from("people")
             .select()
+            .eq("anonymous", value: false)
             .order("last_logged_at", ascending: false)
             .execute()
             .value
     }
 
-    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil, metCold: Bool? = nil) async throws -> Person {
+    func createPerson(name: String, status: PersonStatus = .cold, notes: String? = nil, metCold: Bool? = nil, anonymous: Bool = false) async throws -> Person {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         let seed = (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil
@@ -139,6 +172,7 @@ final class LiveHiyaRepository: HiyaRepository {
             let status_changed_at: String?
             let notes: String?
             let met_cold: Bool
+            let anonymous: Bool
         }
         let inserted: Person = try await client
             .from("people")
@@ -148,7 +182,8 @@ final class LiveHiyaRepository: HiyaRepository {
                 status: status.rawValue,
                 status_changed_at: status == .warm ? Date.now.iso8601String : nil,
                 notes: seed,
-                met_cold: resolvedMetCold
+                met_cold: resolvedMetCold,
+                anonymous: anonymous
             ))
             .select()
             .single()
@@ -469,6 +504,7 @@ final class LiveHiyaRepository: HiyaRepository {
             .from("people")
             .select()
             .eq("status", value: "warm")
+            .eq("anonymous", value: false)
             .lt("last_logged_at", value: threshold.iso8601String)
             .order("last_logged_at", ascending: true)
             .limit(limit)

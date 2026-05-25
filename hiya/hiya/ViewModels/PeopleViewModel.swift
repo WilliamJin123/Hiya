@@ -115,7 +115,7 @@ final class PeopleViewModel {
     func addPerson(name: String, notes: String? = nil) async {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        await mutate { _ = try await self.repo.createPerson(name: trimmed, status: .warm, notes: notes, metCold: false) }
+        await mutate { _ = try await self.repo.createPerson(name: trimmed, status: .warm, notes: notes, metCold: false, anonymous: false) }
     }
 
     func updateNotes(id: UUID, notes: String?) async {

@@ -142,7 +142,9 @@ struct LogSheetViewModelTests {
 
     @Test func canSaveFalseWhenNoSelectionAndEmptySearch() async {
         let repo = MockHiyaRepository()
-        let vm = LogSheetViewModel(repo: repo)
+        // Catch-ups (warm) mode has no quick-approach path, so an empty sheet
+        // can't be saved. (In Approaches mode an empty sheet is a quick approach.)
+        let vm = LogSheetViewModel(repo: repo, creationMode: .warm)
         await vm.load()
         #expect(vm.canSave == false)
     }
@@ -414,5 +416,31 @@ struct LogSheetViewModelTests {
         )
         let vm = LogSheetViewModel(repo: repo, editing: entry)
         #expect(vm.location == "The Gym")
+    }
+
+    @Test func quickApproach_logsNamelessCountedApproaches() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        await vm.load()
+        // Nothing typed or selected in Approaches mode → a quick approach.
+        #expect(vm.isQuickApproach)
+        vm.quickApproachCount = 2
+        vm.valence = .negative
+        vm.location = "e7"
+
+        let ok = await vm.save()
+        #expect(ok)
+        #expect(repo.conversations.count == 2)
+        #expect(repo.conversations.allSatisfy { $0.wasColdAtTime })
+        let listed = try await repo.listPeople()
+        #expect(listed.isEmpty)
+    }
+
+    @Test func typedName_isNotQuickApproach() async throws {
+        let repo = MockHiyaRepository()
+        let vm = LogSheetViewModel(repo: repo, creationMode: .cold)
+        await vm.load()
+        vm.searchText = "Sam"
+        #expect(!vm.isQuickApproach)
     }
 }
