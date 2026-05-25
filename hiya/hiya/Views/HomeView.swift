@@ -5,6 +5,7 @@ struct HomeView: View {
     @State private var vm: HomeViewModel
     @State private var challengesVM: ChallengesViewModel
     @State private var sheetMode: LogSheetMode?
+    @State private var showingSettings = false
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
 
     init(repo: HiyaRepository) {
@@ -33,10 +34,10 @@ struct HomeView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    NavigationLink {
-                        HistoryView(repo: repo)
+                    Button {
+                        showingSettings = true
                     } label: {
-                        Image(systemName: "calendar")
+                        Image(systemName: "gearshape")
                             .foregroundColor(Theme.accentLavender)
                     }
                 }
@@ -53,16 +54,11 @@ struct HomeView: View {
                             .foregroundColor(Theme.accentLavender)
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink {
-                        PeopleView(repo: repo)
-                    } label: {
-                        Image(systemName: "person.2.fill")
-                            .foregroundColor(Theme.accentLavender)
-                    }
-                }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
+            .sheet(isPresented: $showingSettings, onDismiss: { Task { await vm.refresh() } }) {
+                SettingsView(repo: repo)
+            }
             .task { await vm.refresh(); await challengesVM.load() }
             .refreshable { await vm.refresh(); await challengesVM.load() }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load() } }) { sheet in
