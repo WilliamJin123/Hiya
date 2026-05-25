@@ -62,6 +62,11 @@ enum Theme {
         static func title() -> Font {
             .custom(FontName.titleSerif, size: 32)
         }
+        /// The "Hiya" wordmark — soft rounded letterforms for a friendly,
+        /// playful greeting. Pair with `Theme.accentGradient` as the fill.
+        static func wordmark() -> Font {
+            .system(size: 30, weight: .bold, design: .rounded)
+        }
         static func counter() -> Font {
             .custom(FontName.counterMono, size: 72).weight(.semibold)
         }

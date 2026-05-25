@@ -43,8 +43,9 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .principal) {
                     Text("Hiya")
-                        .font(Theme.FontScale.title())
-                        .foregroundColor(Theme.textPrimary)
+                        .font(Theme.FontScale.wordmark())
+                        .tracking(0.5)
+                        .foregroundStyle(Theme.accentGradient)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
