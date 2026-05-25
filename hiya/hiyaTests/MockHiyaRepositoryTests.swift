@@ -346,6 +346,16 @@ struct MockHiyaRepositoryTests {
         #expect(notes.map(\.body) == ["newer", "older"])
     }
 
+    @Test func updateGoals_setsBothGoals() async throws {
+        let repo = MockHiyaRepository()
+        let updated = try await repo.updateGoals(coldDailyGoal: 3, warmDailyGoal: 8)
+
+        #expect(updated.coldDailyGoal == 3)
+        #expect(updated.warmDailyGoal == 8)
+        #expect(repo.profile.coldDailyGoal == 3)
+        #expect(repo.profile.warmDailyGoal == 8)
+    }
+
     @Test func deletePerson_cascadesNotes() async throws {
         let repo = MockHiyaRepository()
         let p = try await repo.createPerson(name: "Alex", notes: "seed")

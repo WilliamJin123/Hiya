@@ -17,23 +17,30 @@ final class HomeViewModel {
     private(set) var isLoading: Bool = false
     var errorMessage: String?
 
-    var goal: Int { profile?.dailyGoal ?? 10 }
+    /// Per-mode daily goal — Approaches and Catch-ups never share one.
+    func goal(for mode: PersonStatus) -> Int {
+        switch mode {
+        case .cold: return profile?.coldDailyGoal ?? 10
+        case .warm: return profile?.warmDailyGoal ?? 10
+        }
+    }
 
     func count(for mode: PersonStatus) -> Int {
         mode == .cold ? coldCount : warmCount
     }
 
     func progress(for mode: PersonStatus) -> Double {
+        let goal = goal(for: mode)
         guard goal > 0 else { return 0 }
         return min(1.0, Double(count(for: mode)) / Double(goal))
     }
 
     func isGoalMet(for mode: PersonStatus) -> Bool {
-        count(for: mode) >= goal
+        count(for: mode) >= goal(for: mode)
     }
 
     func ringState(for mode: PersonStatus) -> RingState {
-        Self.ringState(count: count(for: mode), goal: goal)
+        Self.ringState(count: count(for: mode), goal: goal(for: mode))
     }
 
     static func ringState(count: Int, goal: Int) -> RingState {

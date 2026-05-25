@@ -24,7 +24,7 @@ struct HomeViewModelTests {
 
         #expect(vm.count(for: .cold) == 2)
         #expect(vm.count(for: .warm) == 0)
-        #expect(vm.goal == 10)
+        #expect(vm.goal(for: .cold) == 10)
         #expect(vm.todaysLog.count == 2)
         #expect(vm.errorMessage == nil)
     }
@@ -116,7 +116,7 @@ struct HomeViewModelTests {
 
     @Test func progressCapsAt1WhenOverGoal() async throws {
         let repo = MockHiyaRepository(profile: Profile(
-            id: UUID(), displayName: nil, dailyGoal: 2,
+            id: UUID(), displayName: nil, dailyGoal: 2, coldDailyGoal: 2,
             streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
         ))
         try await logUniquePeople(5, into: repo)
@@ -143,7 +143,7 @@ struct HomeViewModelTests {
 
     @Test func ringState_isAtGoal_whenExactlyGoal() async throws {
         let repo = MockHiyaRepository(profile: Profile(
-            id: UUID(), displayName: nil, dailyGoal: 5,
+            id: UUID(), displayName: nil, dailyGoal: 5, coldDailyGoal: 5,
             streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
         ))
         try await logUniquePeople(5, into: repo)
@@ -159,7 +159,7 @@ struct HomeViewModelTests {
 
     @Test func ringState_isOverload_withCorrectExtra_whenAboveGoal() async throws {
         let repo = MockHiyaRepository(profile: Profile(
-            id: UUID(), displayName: nil, dailyGoal: 3,
+            id: UUID(), displayName: nil, dailyGoal: 3, coldDailyGoal: 3,
             streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
         ))
         try await logUniquePeople(5, into: repo)

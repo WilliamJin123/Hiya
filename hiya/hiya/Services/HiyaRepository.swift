@@ -2,6 +2,7 @@ import Foundation
 
 protocol HiyaRepository: Sendable {
     func ensureSignedIn() async throws -> Profile
+    func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile
     func listPeople() async throws -> [Person]
     func createPerson(name: String, status: PersonStatus, notes: String?) async throws -> Person
     func conversations(start: Date, end: Date) async throws -> [LoggedConversation]
@@ -90,6 +91,22 @@ final class LiveHiyaRepository: HiyaRepository {
             .execute()
             .value
         return profile
+    }
+
+    func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile {
+        let userId = try await client.auth.user().id
+        struct Update: Encodable {
+            let cold_daily_goal: Int
+            let warm_daily_goal: Int
+        }
+        return try await client
+            .from("profiles")
+            .update(Update(cold_daily_goal: coldDailyGoal, warm_daily_goal: warmDailyGoal))
+            .eq("id", value: userId)
+            .select()
+            .single()
+            .execute()
+            .value
     }
 
     func listPeople() async throws -> [Person] {

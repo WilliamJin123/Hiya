@@ -25,6 +25,13 @@ final class MockHiyaRepository: HiyaRepository {
         return profile
     }
 
+    func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        profile.coldDailyGoal = coldDailyGoal
+        profile.warmDailyGoal = warmDailyGoal
+        return profile
+    }
+
     func listPeople() async throws -> [Person] {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         return people.sorted { $0.lastLoggedAt > $1.lastLoggedAt }
