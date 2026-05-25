@@ -6,7 +6,7 @@ struct hiyaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(repo: repo)
+            AppGateView(repo: repo)
                 .preferredColorScheme(.dark)
         }
     }
