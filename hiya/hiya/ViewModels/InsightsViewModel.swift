@@ -83,7 +83,7 @@ final class InsightsViewModel {
     }
 
     /// strangers = distinct people met cold (≥1 cold-snapshot conversation);
-    /// became = those who are now warm.
+    /// became = those I met *again* at least once (≥2 logged conversations).
     static func conversions(
         people: [Person],
         conversations conv: [LoggedConversation]
@@ -93,8 +93,14 @@ final class InsightsViewModel {
         // relationship prospects, so they must not inflate the denominator.
         let realIds = Set(people.map(\.id))
         let coldPersonIds = Set(conv.filter { $0.wasColdAtTime }.map(\.personId)).intersection(realIds)
-        let warmIds = Set(people.filter { $0.status == .warm }.map(\.id))
-        let became = coldPersonIds.filter { warmIds.contains($0) }.count
+        // A stranger is "no longer a stranger" only once I've met them again —
+        // not because their status auto-graduated to warm over time. So count it
+        // by repeat contact: ≥2 logged conversations with that person.
+        var convCounts: [UUID: Int] = [:]
+        for c in conv where coldPersonIds.contains(c.personId) {
+            convCounts[c.personId, default: 0] += 1
+        }
+        let became = coldPersonIds.filter { (convCounts[$0] ?? 0) >= 2 }.count
         return (coldPersonIds.count, became)
     }
 

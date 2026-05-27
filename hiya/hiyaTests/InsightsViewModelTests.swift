@@ -46,26 +46,30 @@ struct InsightsViewModelTests {
         #expect(days.reduce(0) { $0 + $1.warm } == 1)
     }
 
-    @Test func conversions_countsStrangersAndGraduates() async throws {
-        let graduate = UUID()      // warm now, met cold
-        let stillStranger = UUID() // cold now, met cold
-        let bornWarm = UUID()      // warm now, never a cold conv
+    @Test func conversions_countsStrangersAndRepeatMeetings() async throws {
+        let metAgain = UUID()    // met cold, then met again → no longer a stranger
+        let oneAndDone = UUID()  // met cold once, never again → still a stranger
+        let bornWarm = UUID()    // never a cold conv → not a stranger
 
+        // Statuses are deliberately "wrong" relative to the answer: metAgain is
+        // still .cold and oneAndDone auto-graduated to .warm. The result must
+        // ignore the status flag and key off repeat contact alone.
         let people = [
-            Person(id: graduate, ownerId: UUID(), name: "G", status: .warm, statusChangedAt: .now, createdAt: .now, lastLoggedAt: .now),
-            Person(id: stillStranger, ownerId: UUID(), name: "S", status: .cold, statusChangedAt: nil, createdAt: .now, lastLoggedAt: .now),
-            Person(id: bornWarm, ownerId: UUID(), name: "B", status: .warm, statusChangedAt: .now, createdAt: .now, lastLoggedAt: .now),
+            Person(id: metAgain, ownerId: UUID(), name: "A", status: .cold, statusChangedAt: nil, createdAt: .now, lastLoggedAt: .now),
+            Person(id: oneAndDone, ownerId: UUID(), name: "B", status: .warm, statusChangedAt: .now, createdAt: .now, lastLoggedAt: .now),
+            Person(id: bornWarm, ownerId: UUID(), name: "C", status: .warm, statusChangedAt: .now, createdAt: .now, lastLoggedAt: .now),
         ]
         let convs = [
-            conv(personId: graduate, wasCold: true),
-            conv(personId: stillStranger, wasCold: true),
-            conv(personId: bornWarm, wasCold: false),
+            conv(personId: metAgain, daysAgo: 10, wasCold: true),
+            conv(personId: metAgain, daysAgo: 3, wasCold: true),   // met again
+            conv(personId: oneAndDone, daysAgo: 5, wasCold: true),
+            conv(personId: bornWarm, daysAgo: 1, wasCold: false),
         ]
 
         let result = InsightsViewModel.conversions(people: people, conversations: convs)
 
-        #expect(result.strangers == 2, "graduate + stillStranger were met cold")
-        #expect(result.became == 1, "only the graduate is now warm")
+        #expect(result.strangers == 2, "metAgain + oneAndDone were met cold")
+        #expect(result.became == 1, "only metAgain has a repeat meeting; status flag is ignored")
     }
 
     @Test func conversions_excludeNamelessQuickApproaches() {
@@ -78,7 +82,8 @@ struct InsightsViewModelTests {
             Person(id: real, ownerId: UUID(), name: "Real", status: .warm, statusChangedAt: .now, createdAt: .now, lastLoggedAt: .now),
         ]
         let convs = [
-            conv(personId: real, wasCold: true),
+            conv(personId: real, daysAgo: 9, wasCold: true),
+            conv(personId: real, daysAgo: 2, wasCold: false),  // met again
             conv(personId: anonA, wasCold: true),
             conv(personId: anonB, wasCold: true),
         ]
@@ -86,7 +91,7 @@ struct InsightsViewModelTests {
         let result = InsightsViewModel.conversions(people: people, conversations: convs)
 
         #expect(result.strangers == 1, "nameless quick approaches don't count as strangers")
-        #expect(result.became == 1)
+        #expect(result.became == 1, "the real person was met again")
     }
 
     @Test func valenceBreakdown_talliesAndIgnoresNil() async throws {
