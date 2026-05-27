@@ -395,7 +395,6 @@ extension Profile {
     nonisolated static let preview = Profile(
         id: UUID(),
         displayName: nil,
-        dailyGoal: 10,
         streakMode: .hard,
         timezone: TimeZone.current.identifier,
         createdAt: .now

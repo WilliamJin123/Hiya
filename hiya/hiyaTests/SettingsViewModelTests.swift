@@ -7,7 +7,7 @@ struct SettingsViewModelTests {
 
     @Test func load_seedsGoalsFromProfile() async throws {
         let repo = MockHiyaRepository(profile: Profile(
-            id: UUID(), displayName: nil, dailyGoal: 10,
+            id: UUID(), displayName: nil,
             coldDailyGoal: 3, warmDailyGoal: 8,
             streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
         ))
