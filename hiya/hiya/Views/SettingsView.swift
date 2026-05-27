@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var claimEmail = ""
     @State private var claimPassword = ""
     @State private var nameDraft = ""
+    @State private var showDeleteConfirm = false
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -96,7 +97,33 @@ struct SettingsView: View {
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.valenceNegative)
             }
+
+            deleteAccountButton
         }
+        .alert("Delete account?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
+                Task { await session.deleteAccount() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes your account and all your logs. This can't be undone.")
+        }
+    }
+
+    private var deleteAccountButton: some View {
+        Button(role: .destructive) {
+            showDeleteConfirm = true
+        } label: {
+            Text("Delete account")
+                .font(Theme.FontScale.body())
+                .foregroundColor(Theme.valenceNegative)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+        }
+        .buttonStyle(.plain)
+        .disabled(session.isWorking)
     }
 
     @ViewBuilder
