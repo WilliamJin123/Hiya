@@ -13,6 +13,7 @@ protocol HiyaRepository: Sendable {
     func signUp(email: String, password: String, displayName: String) async throws -> Profile
     func signIn(email: String, password: String) async throws -> Profile
     func signOut() async throws
+    func deleteAccount() async throws
     func updateDisplayName(_ name: String) async throws -> Profile
     func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile
     func listPeople() async throws -> [Person]
@@ -169,6 +170,14 @@ final class LiveHiyaRepository: HiyaRepository {
 
     func signOut() async throws {
         try await client.auth.signOut()
+    }
+
+    func deleteAccount() async throws {
+        // Brokered server-side: the anon key can't delete an auth.users row, so a
+        // SECURITY DEFINER RPC deletes the calling user and cascades wipe the data.
+        try await client.rpc("delete_current_user").execute()
+        // The JWT is dead now; clear the local session, ignoring a revoke failure.
+        try? await client.auth.signOut()
     }
 
     func updateDisplayName(_ name: String) async throws -> Profile {

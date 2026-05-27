@@ -82,4 +82,38 @@ struct SessionViewModelTests {
         #expect(vm.state == .app)
         #expect(vm.account?.isAnonymous == false)
     }
+
+    @Test func deleteAccount_success_routesToAuthAndClearsFlags() async {
+        let defaults = freshDefaults()
+        defaults.set(true, forKey: "hiya.hasGraduatedToAccount")
+        defaults.set(true, forKey: "hiya.hasOnboarded")
+        let repo = MockHiyaRepository()
+        let vm = SessionViewModel(repo: repo, defaults: defaults)
+        await vm.start()
+
+        await vm.deleteAccount()
+
+        #expect(repo.didDeleteAccount)
+        #expect(vm.state == .auth)
+        #expect(vm.account == nil)
+        // Flags reset: a fresh session on the same defaults is a brand-new device.
+        #expect(SessionViewModel.decide(account: nil, hasGraduated: defaults.bool(forKey: "hiya.hasGraduatedToAccount")) == .createAnonymous)
+        #expect(defaults.bool(forKey: "hiya.hasOnboarded") == false)
+    }
+
+    @Test func deleteAccount_failure_keepsStateAndSetsError() async {
+        let defaults = freshDefaults()
+        defaults.set(true, forKey: "hiya.hasOnboarded")
+        let repo = MockHiyaRepository()
+        let vm = SessionViewModel(repo: repo, defaults: defaults)
+        await vm.start()
+        #expect(vm.state == .app)
+
+        repo.errorToThrow = NSError(domain: "test", code: 1)
+        await vm.deleteAccount()
+
+        #expect(vm.state == .app)              // unchanged
+        #expect(vm.account != nil)
+        #expect(vm.errorMessage != nil)
+    }
 }

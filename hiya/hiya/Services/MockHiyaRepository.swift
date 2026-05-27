@@ -57,6 +57,17 @@ final class MockHiyaRepository: HiyaRepository {
         authAccount = nil
     }
 
+    private(set) var didDeleteAccount = false
+    func deleteAccount() async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        didDeleteAccount = true
+        authAccount = nil
+        people = []
+        conversations = []
+        personNoteRows = []
+        challengeRows = []
+    }
+
     func updateDisplayName(_ name: String) async throws -> Profile {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         profile.displayName = name

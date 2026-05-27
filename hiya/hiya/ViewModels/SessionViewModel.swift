@@ -101,6 +101,22 @@ final class SessionViewModel {
         state = .auth
     }
 
+    func deleteAccount() async {
+        do {
+            try await repo.deleteAccount()
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        account = nil
+        profile = nil
+        // A truly fresh device: next launch creates a new anonymous session and
+        // re-onboards, rather than offering to sign back into the deleted account.
+        hasGraduated = false
+        hasOnboarded = false
+        state = .auth
+    }
+
     func completeOnboarding() {
         hasOnboarded = true
         state = .app
