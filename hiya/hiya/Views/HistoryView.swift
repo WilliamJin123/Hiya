@@ -434,17 +434,36 @@ private struct DayHeader: View {
     }
 }
 
-/// Thin leading accent that marks a row's track: lavender for a new cold
-/// approach, amber for a catch-up with someone already known. Stretches to the
-/// row's height; distinct in shape (line) from the valence dot (circle).
-private struct TypeStripe: View {
+/// A log's leading indicator carrying both dimensions in one mark: the core dot
+/// is the valence (good / ok / rough); the soft aura around it is the track —
+/// lavender for a new cold approach, amber for a catch-up with someone known.
+private struct LogGlyph: View {
+    let valence: Conversation.Valence?
     let wasCold: Bool
 
+    private var coreColor: Color {
+        switch valence {
+        case .positive: Theme.valencePositive
+        case .neutral:  Theme.valenceNeutral
+        case .negative: Theme.valenceNegative
+        case .none:     Theme.valenceNone
+        }
+    }
+
+    private var auraColor: Color { wasCold ? Theme.coldAccent : Theme.warmAccent }
+
     var body: some View {
-        Capsule()
-            .fill(wasCold ? Theme.coldAccent : Theme.warmAccent)
-            .frame(width: 3)
-            .opacity(0.85)
+        ZStack {
+            Circle()
+                .fill(auraColor)
+                .frame(width: 20, height: 20)
+                .blur(radius: 5)
+                .opacity(0.5)
+            Circle()
+                .fill(coreColor)
+                .frame(width: 9, height: 9)
+        }
+        .frame(width: 20, height: 20)
     }
 }
 
@@ -452,47 +471,35 @@ private struct SearchResultRow: View {
     let entry: LoggedConversation
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            TypeStripe(wasCold: entry.wasColdAtTime)
-            HStack(spacing: Theme.Spacing.md) {
-                Circle().fill(valenceColor).frame(width: 9, height: 9)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.personName)
-                        .font(Theme.FontScale.body())
-                        .foregroundColor(Theme.textPrimary)
-                    if let location = entry.location, !location.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "mappin.circle").font(.system(size: 11))
-                            Text(location).lineLimit(1)
-                        }
-                        .font(Theme.FontScale.micro())
-                        .foregroundColor(Theme.textSecondary)
+        HStack(spacing: Theme.Spacing.md) {
+            LogGlyph(valence: entry.valence, wasCold: entry.wasColdAtTime)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.personName)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                if let location = entry.location, !location.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle").font(.system(size: 11))
+                        Text(location).lineLimit(1)
                     }
-                    if let note = entry.note, !note.isEmpty {
-                        Text(note)
-                            .font(Theme.FontScale.secondary())
-                            .foregroundColor(Theme.textSecondary)
-                            .lineLimit(2)
-                    }
-                }
-                Spacer()
-                Text(entry.occurredAt.formatted(date: .abbreviated, time: .omitted))
                     .font(Theme.FontScale.micro())
-                    .tracking(0.5)
                     .foregroundColor(Theme.textSecondary)
+                }
+                if let note = entry.note, !note.isEmpty {
+                    Text(note)
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .lineLimit(2)
+                }
             }
+            Spacer()
+            Text(entry.occurredAt.formatted(date: .abbreviated, time: .omitted))
+                .font(Theme.FontScale.micro())
+                .tracking(0.5)
+                .foregroundColor(Theme.textSecondary)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-    }
-
-    private var valenceColor: Color {
-        switch entry.valence {
-        case .positive: Theme.valencePositive
-        case .neutral:  Theme.valenceNeutral
-        case .negative: Theme.valenceNegative
-        case .none:     Theme.valenceNone
-        }
     }
 }
 
@@ -500,41 +507,27 @@ private struct EntryRow: View {
     let entry: LoggedConversation
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            TypeStripe(wasCold: entry.wasColdAtTime)
-            HStack(spacing: Theme.Spacing.md) {
-                Circle()
-                    .fill(valenceColor)
-                    .frame(width: 9, height: 9)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.personName)
-                        .font(Theme.FontScale.body())
-                        .foregroundColor(Theme.textPrimary)
-                    if let note = entry.note, !note.isEmpty {
-                        Text(note)
-                            .font(Theme.FontScale.secondary())
-                            .foregroundColor(Theme.textSecondary)
-                            .lineLimit(2)
-                    }
+        HStack(spacing: Theme.Spacing.md) {
+            LogGlyph(valence: entry.valence, wasCold: entry.wasColdAtTime)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.personName)
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                if let note = entry.note, !note.isEmpty {
+                    Text(note)
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .lineLimit(2)
                 }
-                Spacer()
-                Text(entry.occurredAt, style: .time)
-                    .font(Theme.FontScale.micro())
-                    .tracking(0.8)
-                    .foregroundColor(Theme.textSecondary)
             }
+            Spacer()
+            Text(entry.occurredAt, style: .time)
+                .font(Theme.FontScale.micro())
+                .tracking(0.8)
+                .foregroundColor(Theme.textSecondary)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-    }
-
-    private var valenceColor: Color {
-        switch entry.valence {
-        case .positive: Theme.valencePositive
-        case .neutral:  Theme.valenceNeutral
-        case .negative: Theme.valenceNegative
-        case .none:     Theme.valenceNone
-        }
     }
 }
 
