@@ -434,36 +434,53 @@ private struct DayHeader: View {
     }
 }
 
+/// Thin leading accent that marks a row's track: lavender for a new cold
+/// approach, amber for a catch-up with someone already known. Stretches to the
+/// row's height; distinct in shape (line) from the valence dot (circle).
+private struct TypeStripe: View {
+    let wasCold: Bool
+
+    var body: some View {
+        Capsule()
+            .fill(wasCold ? Theme.coldAccent : Theme.warmAccent)
+            .frame(width: 3)
+            .opacity(0.85)
+    }
+}
+
 private struct SearchResultRow: View {
     let entry: LoggedConversation
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            Circle().fill(valenceColor).frame(width: 9, height: 9)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.personName)
-                    .font(Theme.FontScale.body())
-                    .foregroundColor(Theme.textPrimary)
-                if let location = entry.location, !location.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin.circle").font(.system(size: 11))
-                        Text(location).lineLimit(1)
-                    }
-                    .font(Theme.FontScale.micro())
-                    .foregroundColor(Theme.textSecondary)
-                }
-                if let note = entry.note, !note.isEmpty {
-                    Text(note)
-                        .font(Theme.FontScale.secondary())
+        HStack(spacing: Theme.Spacing.sm) {
+            TypeStripe(wasCold: entry.wasColdAtTime)
+            HStack(spacing: Theme.Spacing.md) {
+                Circle().fill(valenceColor).frame(width: 9, height: 9)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.personName)
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    if let location = entry.location, !location.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.circle").font(.system(size: 11))
+                            Text(location).lineLimit(1)
+                        }
+                        .font(Theme.FontScale.micro())
                         .foregroundColor(Theme.textSecondary)
-                        .lineLimit(2)
+                    }
+                    if let note = entry.note, !note.isEmpty {
+                        Text(note)
+                            .font(Theme.FontScale.secondary())
+                            .foregroundColor(Theme.textSecondary)
+                            .lineLimit(2)
+                    }
                 }
+                Spacer()
+                Text(entry.occurredAt.formatted(date: .abbreviated, time: .omitted))
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.5)
+                    .foregroundColor(Theme.textSecondary)
             }
-            Spacer()
-            Text(entry.occurredAt.formatted(date: .abbreviated, time: .omitted))
-                .font(Theme.FontScale.micro())
-                .tracking(0.5)
-                .foregroundColor(Theme.textSecondary)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -483,26 +500,29 @@ private struct EntryRow: View {
     let entry: LoggedConversation
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            Circle()
-                .fill(valenceColor)
-                .frame(width: 9, height: 9)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.personName)
-                    .font(Theme.FontScale.body())
-                    .foregroundColor(Theme.textPrimary)
-                if let note = entry.note, !note.isEmpty {
-                    Text(note)
-                        .font(Theme.FontScale.secondary())
-                        .foregroundColor(Theme.textSecondary)
-                        .lineLimit(2)
+        HStack(spacing: Theme.Spacing.sm) {
+            TypeStripe(wasCold: entry.wasColdAtTime)
+            HStack(spacing: Theme.Spacing.md) {
+                Circle()
+                    .fill(valenceColor)
+                    .frame(width: 9, height: 9)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.personName)
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    if let note = entry.note, !note.isEmpty {
+                        Text(note)
+                            .font(Theme.FontScale.secondary())
+                            .foregroundColor(Theme.textSecondary)
+                            .lineLimit(2)
+                    }
                 }
+                Spacer()
+                Text(entry.occurredAt, style: .time)
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.8)
+                    .foregroundColor(Theme.textSecondary)
             }
-            Spacer()
-            Text(entry.occurredAt, style: .time)
-                .font(Theme.FontScale.micro())
-                .tracking(0.8)
-                .foregroundColor(Theme.textSecondary)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
