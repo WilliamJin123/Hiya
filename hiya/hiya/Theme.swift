@@ -70,7 +70,11 @@ enum Theme {
 
     enum FontName {
         static let titleSerif   = "InstrumentSerif-Regular"
-        static let bodySans     = "DMSans-Regular"
+        /// Vercel's Geist — picked to match the existing `GeistMono` counters,
+        /// so numbers and text now belong to the same family. Modern with a
+        /// little character (cut counters on `a`, distinctive `g` descender)
+        /// while staying very legible. Replaces DM Sans.
+        static let bodySans     = "Geist-Regular"
         static let counterMono  = "GeistMono-Regular"
     }
 
