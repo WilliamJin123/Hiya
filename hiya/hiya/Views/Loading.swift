@@ -150,6 +150,10 @@ private struct DelayedLoadingModifier<Placeholder: View>: ViewModifier {
         Group {
             if hasLoaded {
                 content
+                    // Even when the network was instant (< 250 ms, no skeleton
+                    // shown), content blooms in instead of popping — a small
+                    // fade + scale that reads as "the data settled into place."
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             } else if showsPlaceholder && phase != .hidden {
                 placeholder()
                     .environment(\.loadingTier, phase)
@@ -159,7 +163,7 @@ private struct DelayedLoadingModifier<Placeholder: View>: ViewModifier {
             }
         }
         .animation(.easeInOut(duration: 0.22), value: phase)
-        .animation(.easeInOut(duration: 0.22), value: hasLoaded)
+        .animation(.easeOut(duration: 0.32), value: hasLoaded)
         .task(id: showsPlaceholder) {
             phase = .hidden
             guard showsPlaceholder else { return }

@@ -20,16 +20,23 @@ struct AppGateView: View {
                     Theme.bgGradient.ignoresSafeArea()
                     LoadingPulse(size: 14)
                 }
+                .transition(.opacity)
             case .app:
                 RootView(repo: repo)
                     .environment(session)
                     .environment(notifications)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
             case .onboarding:
                 OnboardingView(repo: repo, session: session)
+                    .transition(.opacity)
             case .auth:
                 AuthView(session: session)
+                    .transition(.opacity)
             }
         }
+        // Smooths the very first thing the user sees: loading → app fades
+        // instead of hard-cutting once the cached session hydrates.
+        .animation(.easeInOut(duration: 0.32), value: session.state)
         .task {
             if session.state == .loading { await session.start() }
         }
