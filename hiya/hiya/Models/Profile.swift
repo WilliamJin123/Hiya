@@ -23,3 +23,21 @@ struct Profile: Codable, Sendable, Identifiable, Equatable {
         case createdAt = "created_at"
     }
 }
+
+extension Profile {
+    /// Custom decoder so a dropped or not-yet-added column never breaks the
+    /// app: every non-essential field falls back to its property default. (The
+    /// auto-synthesized decoder ignores defaults and throws `keyNotFound`
+    /// instead — which is what burned us when `daily_goal` got dropped.)
+    /// Lives in an extension so the memberwise initializer is preserved.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id            = try c.decode(UUID.self, forKey: .id)
+        self.displayName   = try c.decodeIfPresent(String.self, forKey: .displayName)
+        self.coldDailyGoal = try c.decodeIfPresent(Int.self, forKey: .coldDailyGoal) ?? 10
+        self.warmDailyGoal = try c.decodeIfPresent(Int.self, forKey: .warmDailyGoal) ?? 10
+        self.streakMode    = try c.decodeIfPresent(StreakMode.self, forKey: .streakMode) ?? .hard
+        self.timezone      = try c.decodeIfPresent(String.self, forKey: .timezone) ?? "UTC"
+        self.createdAt     = try c.decode(Date.self, forKey: .createdAt)
+    }
+}
