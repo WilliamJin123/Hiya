@@ -18,6 +18,9 @@ struct PeopleView: View {
         ZStack {
             Theme.bgGradient.ignoresSafeArea()
             content
+                .delayedLoading(isLoading: vm.isLoading, hasLoaded: vm.hasLoaded) {
+                    PeopleSkeleton()
+                }
         }
         .navigationTitle("People")
         .navigationBarTitleDisplayMode(.inline)

@@ -26,6 +26,9 @@ struct InsightsView: View {
                     emptyState
                 }
             }
+            .delayedLoading(isLoading: vm.isLoading, hasLoaded: vm.hasLoaded) {
+                ScrollView { InsightsSkeleton() }
+            }
         }
         .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.inline)

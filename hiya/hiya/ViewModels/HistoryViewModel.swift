@@ -7,6 +7,8 @@ final class HistoryViewModel {
     private let repo: HiyaRepository
     private(set) var sections: [DaySection] = []
     private(set) var isLoading: Bool = false
+    /// First successful load landed — drives the SWR seam in the view.
+    private(set) var hasLoaded: Bool = false
     var errorMessage: String?
 
     /// How far back history loads. A year covers monthly review patterns;
@@ -32,6 +34,7 @@ final class HistoryViewModel {
             ) ?? todayStart
             let convs = try await repo.conversations(start: windowStart, end: windowEnd)
             sections = Self.groupByDay(convs)
+            hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription
         }

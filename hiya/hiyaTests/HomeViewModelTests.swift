@@ -215,6 +215,27 @@ struct HomeViewModelTests {
         #expect(vm.followUpSuggestions.map(\.name) == ["Stale"])
     }
 
+    @Test func refresh_success_flipsHasLoaded() async throws {
+        let repo = MockHiyaRepository()
+        let vm = HomeViewModel(repo: repo)
+        #expect(vm.hasLoaded == false)
+
+        await vm.refresh()
+
+        #expect(vm.hasLoaded == true)
+    }
+
+    @Test func refresh_failure_leavesHasLoadedFalse() async {
+        let repo = MockHiyaRepository()
+        repo.errorToThrow = NSError(domain: "test", code: 1)
+        let vm = HomeViewModel(repo: repo)
+
+        await vm.refresh()
+
+        #expect(vm.errorMessage != nil)
+        #expect(vm.hasLoaded == false, "first-load failure should keep skeleton showing")
+    }
+
     @Test func refresh_warmStreakReflectsRepeatLogs() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")

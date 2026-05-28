@@ -30,6 +30,9 @@ struct HistoryView: View {
                     searchResultsContent
                 }
             }
+            .delayedLoading(isLoading: vm.isLoading, hasLoaded: vm.hasLoaded) {
+                ScrollView { HistorySkeleton() }
+            }
         }
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)

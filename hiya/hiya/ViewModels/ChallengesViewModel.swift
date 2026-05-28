@@ -8,6 +8,8 @@ final class ChallengesViewModel {
     private(set) var challenges: [Challenge] = []
     private(set) var recentConversations: [LoggedConversation] = []
     private(set) var isLoading = false
+    /// First successful load landed — drives the SWR seam in the view.
+    private(set) var hasLoaded = false
     var errorMessage: String?
 
     init(repo: HiyaRepository) { self.repo = repo }
@@ -41,6 +43,7 @@ final class ChallengesViewModel {
             self.challenges = all
             self.recentConversations = try await repo.conversations(start: start, end: end)
             await autoComplete()
+            hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -15,6 +15,10 @@ final class HomeViewModel {
     private(set) var streaks: StreakInfo = .zero
     private(set) var followUpSuggestions: [Person] = []
     private(set) var isLoading: Bool = false
+    /// Flipped true once the first successful refresh lands. Drives the
+    /// stale-while-revalidate seam in the view: while false we render the
+    /// skeleton, after that subsequent refreshes leave content visible.
+    private(set) var hasLoaded: Bool = false
     var errorMessage: String?
 
     /// Per-mode daily goal — Approaches and Catch-ups never share one.
@@ -83,6 +87,7 @@ final class HomeViewModel {
             self.warmCount = Self.uniquePeople(in: log, cold: false)
             self.streaks = StreakInfo.compute(activity: activity)
             self.followUpSuggestions = suggestions
+            self.hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription
         }

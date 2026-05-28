@@ -19,6 +19,8 @@ final class PeopleViewModel {
     private(set) var people: [Person] = []
     private(set) var recentConversations: [LoggedConversation] = []
     private(set) var isLoading: Bool = false
+    /// First successful load landed — drives the SWR seam in the view.
+    private(set) var hasLoaded: Bool = false
     var errorMessage: String?
     var searchText: String = ""
 
@@ -55,6 +57,7 @@ final class PeopleViewModel {
             async let convResult = repo.conversations(start: start, end: end)
             people = try await peopleResult
             recentConversations = try await convResult
+            hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription
         }

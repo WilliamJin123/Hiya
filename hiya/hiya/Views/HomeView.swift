@@ -141,6 +141,9 @@ struct HomeView: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.bottom, Theme.Spacing.xl)
         }
+        .delayedLoading(isLoading: vm.isLoading, hasLoaded: vm.hasLoaded) {
+            ScrollView { HomeSkeleton() }
+        }
     }
 
     private func streakLine(for pageMode: PersonStatus) -> some View {

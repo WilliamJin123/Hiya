@@ -14,6 +14,9 @@ struct ChallengesView: View {
         ZStack {
             Theme.bgGradient.ignoresSafeArea()
             content
+                .delayedLoading(isLoading: vm.isLoading, hasLoaded: vm.hasLoaded) {
+                    ScrollView { ChallengesSkeleton() }
+                }
         }
         .navigationTitle("Challenges")
         .navigationBarTitleDisplayMode(.inline)

@@ -19,6 +19,8 @@ final class InsightsViewModel {
     var valence: (positive: Int, neutral: Int, negative: Int) = (0, 0, 0)
     var lessons: [LoggedConversation] = []
     var isLoading = false
+    /// First successful load landed — drives the SWR seam in the view.
+    private(set) var hasLoaded = false
     var errorMessage: String?
 
     init(repo: HiyaRepository) {
@@ -51,6 +53,7 @@ final class InsightsViewModel {
             becameRegulars = c.became
             valence = Self.valenceBreakdown(conv)
             lessons = Self.lessons(from: conv)
+            hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription
         }
