@@ -44,6 +44,7 @@ struct PersonDetailSheet: View {
                     }
                     .padding(Theme.Spacing.md)
                 }
+                WorkingOverlay(isWorking: vm.isWorking || isMoving)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

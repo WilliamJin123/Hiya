@@ -36,13 +36,19 @@ final class InsightsViewModel {
             days.contains { $0.cold > 0 || $0.warm > 0 }
     }
 
+    /// Insights only renders the last 8 weeks of activity and a year-bounded
+    /// conversion funnel, so we never need the full history. 365 days is a
+    /// huge cut from `.distantPast` once a user's been logging for months.
+    private let lookbackDays = 365
+
     func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
             let todayStart = Calendar.current.startOfDay(for: .now)
             let end = Calendar.current.date(byAdding: .day, value: 1, to: todayStart) ?? .now
-            async let convResult = repo.conversations(start: .distantPast, end: end)
+            let start = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: todayStart) ?? .distantPast
+            async let convResult = repo.conversations(start: start, end: end)
             async let peopleResult = repo.listPeople()
             let conv = try await convResult
             let people = try await peopleResult

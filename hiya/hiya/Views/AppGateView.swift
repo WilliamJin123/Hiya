@@ -18,7 +18,7 @@ struct AppGateView: View {
             case .loading:
                 ZStack {
                     Theme.bgGradient.ignoresSafeArea()
-                    ProgressView().tint(Theme.accentLavender)
+                    LoadingPulse(size: 14)
                 }
             case .app:
                 RootView(repo: repo)

@@ -50,6 +50,10 @@ struct LogSheetView: View {
                     }
                     .padding(Theme.Spacing.md)
                 }
+                WorkingOverlay(
+                    isWorking: vm.isSaving || vm.isDeleting,
+                    hint: vm.isDeleting ? "deleting…" : "saving…"
+                )
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

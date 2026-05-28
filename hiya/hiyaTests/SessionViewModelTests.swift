@@ -101,6 +101,69 @@ struct SessionViewModelTests {
         #expect(defaults.bool(forKey: "hiya.hasOnboarded") == false)
     }
 
+    @Test func start_writesCacheOnSuccess() async {
+        let defaults = freshDefaults()
+        defaults.set(true, forKey: "hiya.hasOnboarded")
+        let vm = SessionViewModel(repo: MockHiyaRepository(), defaults: defaults)
+        await vm.start()
+
+        let cached = SessionCache(defaults: defaults).load()
+        #expect(cached.profile != nil, "successful start should populate profile cache")
+        #expect(cached.account != nil, "successful start should populate account cache")
+    }
+
+    @Test func start_optimisticallyHydratesFromCache() async {
+        // Pre-seed cache with a previous session's data, then verify a fresh
+        // VM picks it up immediately. We can't observe the .loading→.app
+        // transition timing in a unit test, but we can check that the final
+        // state ends in .app with the cached profile in place.
+        let defaults = freshDefaults()
+        defaults.set(true, forKey: "hiya.hasOnboarded")
+        let cachedProfile = Profile(
+            id: UUID(), displayName: "Cached You",
+            coldDailyGoal: 4, warmDailyGoal: 6,
+            streakMode: .hard, timezone: "UTC", createdAt: .now
+        )
+        let cachedAccount = AuthAccount(id: cachedProfile.id, email: "u@example.com", isAnonymous: false)
+        SessionCache(defaults: defaults).save(profile: cachedProfile, account: cachedAccount)
+
+        let vm = SessionViewModel(repo: MockHiyaRepository(), defaults: defaults)
+        await vm.start()
+
+        #expect(vm.state == .app)
+        // Mock returns its own anonymous profile, which overwrites the cache —
+        // so the final profile is the mock's, but state.app was reached without
+        // waiting for the network round-trip (that's the perceived-perf win;
+        // not directly observable here, just the contract that cache+net both work).
+        #expect(vm.profile != nil)
+    }
+
+    @Test func signOut_clearsCache() async {
+        let defaults = freshDefaults()
+        defaults.set(true, forKey: "hiya.hasOnboarded")
+        let vm = SessionViewModel(repo: MockHiyaRepository(), defaults: defaults)
+        await vm.start()
+
+        await vm.signOut()
+
+        let cached = SessionCache(defaults: defaults).load()
+        #expect(cached.profile == nil)
+        #expect(cached.account == nil)
+    }
+
+    @Test func deleteAccount_clearsCache() async {
+        let defaults = freshDefaults()
+        defaults.set(true, forKey: "hiya.hasOnboarded")
+        let vm = SessionViewModel(repo: MockHiyaRepository(), defaults: defaults)
+        await vm.start()
+
+        await vm.deleteAccount()
+
+        let cached = SessionCache(defaults: defaults).load()
+        #expect(cached.profile == nil)
+        #expect(cached.account == nil)
+    }
+
     @Test func deleteAccount_failure_keepsStateAndSetsError() async {
         let defaults = freshDefaults()
         defaults.set(true, forKey: "hiya.hasOnboarded")

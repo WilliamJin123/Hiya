@@ -1,6 +1,6 @@
 import Foundation
 
-struct AuthAccount: Equatable, Sendable {
+struct AuthAccount: Codable, Equatable, Sendable {
     let id: UUID
     let email: String?
     let isAnonymous: Bool

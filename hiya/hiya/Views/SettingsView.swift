@@ -55,6 +55,7 @@ struct SettingsView: View {
                     }
                     .padding(Theme.Spacing.md)
                 }
+                WorkingOverlay(isWorking: vm.isSaving || session.isWorking)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

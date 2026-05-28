@@ -27,19 +27,23 @@ final class PersonDetailViewModel {
         }
     }
 
+    /// Add a note. Optimistic: the repo returns the created row, which we
+    /// splice in locally — no need for a full `load()` round-trip after.
+    /// Interactions don't change on note mutations, so they don't reload either.
     func add(_ rawBody: String) async {
         let body = rawBody.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return }
         isWorking = true
         defer { isWorking = false }
         do {
-            _ = try await repo.addPersonNote(personId: person.id, body: body)
-            await load()
+            let created = try await repo.addPersonNote(personId: person.id, body: body)
+            notes.insert(created, at: 0)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
+    /// Edit a note. Optimistic: we mutate the local copy on success.
     func edit(_ note: PersonNote, to rawBody: String) async {
         let body = rawBody.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return }
@@ -47,18 +51,22 @@ final class PersonDetailViewModel {
         defer { isWorking = false }
         do {
             try await repo.updatePersonNote(id: note.id, body: body)
-            await load()
+            if let idx = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[idx].body = body
+                notes[idx].updatedAt = .now
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
+    /// Delete a note. Optimistic: drop locally after the server confirms.
     func delete(_ note: PersonNote) async {
         isWorking = true
         defer { isWorking = false }
         do {
             try await repo.deletePersonNote(id: note.id)
-            await load()
+            notes.removeAll { $0.id == note.id }
         } catch {
             errorMessage = error.localizedDescription
         }

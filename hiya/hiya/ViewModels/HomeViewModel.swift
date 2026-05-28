@@ -71,17 +71,20 @@ final class HomeViewModel {
                 profile = try await repo.ensureSignedIn()
             }
             let (start, end) = Self.todayWindow()
-            // Lazy time-based graduation: anyone who is still cold but had
-            // their last log before today gets flipped to warm now.
-            try await repo.graduatePastDuePeople(beforeLog: start)
-
             let streakSince = Calendar.current.date(byAdding: .day, value: -90, to: start) ?? start
+            // Lazy time-based graduation: anyone who is still cold but had
+            // their last log before today gets flipped to warm now. We can
+            // run it in parallel with the conversation/activity queries —
+            // those read snapshot fields on the rows themselves — but the
+            // follow-up suggestions filter on current Person.status, so they
+            // wait for graduation to settle.
+            async let graduateTask: () = repo.graduatePastDuePeople(beforeLog: start)
             async let logResult = repo.conversations(start: start, end: end)
             async let activityResult = repo.recentConversationActivity(since: streakSince)
-            async let suggestionsResult = repo.followUpSuggestions(thresholdDays: 7, limit: 3)
+            try await graduateTask
+            let suggestions = try await repo.followUpSuggestions(thresholdDays: 7, limit: 3)
             let log = try await logResult
             let activity = try await activityResult
-            let suggestions = try await suggestionsResult
             self.todaysLog = log
             self.coldCount = Self.uniquePeople(in: log, cold: true)
             self.warmCount = Self.uniquePeople(in: log, cold: false)
