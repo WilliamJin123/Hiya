@@ -12,6 +12,40 @@ struct HomeViewModelTests {
         }
     }
 
+    @Test func goalReachedTick_increments_onInProgressToAtGoalTransition() async throws {
+        let repo = MockHiyaRepository()
+        try await logUniquePeople(9, into: repo)
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()                    // hasLoaded → true, count = 9, ring .inProgress
+        #expect(vm.goalReachedTick == 0)
+
+        try await logUniquePeople(1, into: repo)
+        await vm.refresh()                    // 9 → 10: .inProgress → .atGoal
+        #expect(vm.goalReachedTick == 1)
+    }
+
+    @Test func goalReachedTick_doesNotFire_onColdLoadAlreadyAtGoal() async throws {
+        // Opening the app fresh with the goal already met (e.g. from earlier
+        // today) must not celebrate — the wasLoaded gate guards this.
+        let repo = MockHiyaRepository()
+        try await logUniquePeople(10, into: repo)
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+        #expect(vm.goalReachedTick == 0)
+    }
+
+    @Test func goalReachedTick_doesNotFire_onAtGoalToOverloadTransition() async throws {
+        let repo = MockHiyaRepository()
+        try await logUniquePeople(10, into: repo)
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()                    // already-at-goal cold load → no fire
+        #expect(vm.goalReachedTick == 0)
+
+        try await logUniquePeople(1, into: repo)
+        await vm.refresh()                    // 10 → 11: .atGoal → .overload, silent
+        #expect(vm.goalReachedTick == 0)
+    }
+
     @Test func refreshLoadsCountAndLog() async throws {
         let repo = MockHiyaRepository()
         let alex = try await repo.createPerson(name: "Alex")

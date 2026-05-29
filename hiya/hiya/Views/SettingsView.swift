@@ -11,6 +11,9 @@ struct SettingsView: View {
     @State private var claimPassword = ""
     @State private var nameDraft = ""
     @State private var showDeleteConfirm = false
+    /// Bound to the same UserDefaults key SoundEngine reads — flipping it
+    /// takes effect on the very next `play()` call, no engine restart needed.
+    @AppStorage(SoundEngine.enabledDefaultsKey) private var soundsEnabled = true
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -50,6 +53,8 @@ struct SettingsView: View {
                         }
 
                         remindersSection
+
+                        soundsSection
 
                         saveButton
                     }
@@ -125,6 +130,36 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
         .disabled(session.isWorking)
+    }
+
+    @ViewBuilder
+    private var soundsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("SOUNDS")
+                .font(Theme.FontScale.bodyHeading())
+                .tracking(1.2)
+                .foregroundColor(Theme.textSecondary)
+
+            Toggle(isOn: $soundsEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sound effects")
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    Text("Soft chimes on save, goal-reached, mode switches. Respects your silent switch.")
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(Theme.accentLavender)
+            .padding(Theme.Spacing.md)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            .onChange(of: soundsEnabled) { _, newValue in
+                // Preview the change immediately so the toggle feels alive.
+                if newValue { SoundEngine.shared.play(.saveSuccess) }
+            }
+        }
     }
 
     @ViewBuilder

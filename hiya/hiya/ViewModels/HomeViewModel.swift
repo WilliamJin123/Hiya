@@ -19,6 +19,12 @@ final class HomeViewModel {
     /// stale-while-revalidate seam in the view: while false we render the
     /// skeleton, after that subsequent refreshes leave content visible.
     private(set) var hasLoaded: Bool = false
+    /// Increments each time a refresh detects an in-progress → at-goal
+    /// transition (cold or warm). Views can `.onChange` it to fire a
+    /// one-shot effect (e.g. achievement sound) without the VM knowing
+    /// about audio. Stays at 0 across cold-loads — only true mid-session
+    /// transitions count.
+    private(set) var goalReachedTick: Int = 0
     var errorMessage: String?
 
     /// Per-mode daily goal — Approaches and Catch-ups never share one.
@@ -85,15 +91,40 @@ final class HomeViewModel {
             let suggestions = try await repo.followUpSuggestions(thresholdDays: 7, limit: 3)
             let log = try await logResult
             let activity = try await activityResult
+
+            // Snapshot the pre-update ring states so we can detect the
+            // in-progress → at-goal transition after counts apply. Skip on
+            // cold-load (wasLoaded == false) — opening the app already at
+            // 10/10 shouldn't fire the achievement chime.
+            let wasLoaded = hasLoaded
+            let prevCold = Self.ringState(count: coldCount, goal: goal(for: .cold))
+            let prevWarm = Self.ringState(count: warmCount, goal: goal(for: .warm))
+
             self.todaysLog = log
             self.coldCount = Self.uniquePeople(in: log, cold: true)
             self.warmCount = Self.uniquePeople(in: log, cold: false)
             self.streaks = StreakInfo.compute(activity: activity)
             self.followUpSuggestions = suggestions
             self.hasLoaded = true
+
+            if wasLoaded {
+                let newCold = Self.ringState(count: coldCount, goal: goal(for: .cold))
+                let newWarm = Self.ringState(count: warmCount, goal: goal(for: .warm))
+                if Self.justReachedGoal(prev: prevCold, new: newCold)
+                    || Self.justReachedGoal(prev: prevWarm, new: newWarm) {
+                    goalReachedTick &+= 1
+                }
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// True iff the ring went from .inProgress to .atGoal. Going .atGoal →
+    /// .overload (extra logs after hitting 10) is intentionally silent.
+    static func justReachedGoal(prev: RingState, new: RingState) -> Bool {
+        if case .inProgress = prev, case .atGoal = new { return true }
+        return false
     }
 
     static func uniquePeople(in log: [LoggedConversation], cold: Bool) -> Int {

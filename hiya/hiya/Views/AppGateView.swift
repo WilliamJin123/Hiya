@@ -41,6 +41,9 @@ struct AppGateView: View {
             if session.state == .loading { await session.start() }
         }
         .task { await notifications.refreshAuthorizationStatus() }
+        // Engine is idempotent — first call wires the audio graph + pre-renders
+        // every effect buffer; later calls no-op.
+        .task { SoundEngine.shared.start() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await notifications.refreshAuthorizationStatus() }

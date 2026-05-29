@@ -382,7 +382,13 @@ struct LogSheetView: View {
             let after = onSaved
             Task { @MainActor in
                 let ok = await vmRef.save()
-                if ok { Haptics.success() } else { Haptics.error() }
+                if ok {
+                    Haptics.success()
+                    SoundEngine.shared.play(.saveSuccess)
+                } else {
+                    Haptics.error()
+                    SoundEngine.shared.play(.saveFailure)
+                }
                 await after(ok, ok ? nil : vmRef.errorMessage)
             }
             dismiss()

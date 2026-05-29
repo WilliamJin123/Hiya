@@ -33,13 +33,17 @@ struct HomeView: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(.easeInOut(duration: 0.22), value: mode)
-                    .onChange(of: mode) { _, _ in Haptics.selection() }
+                    .onChange(of: mode) { _, _ in
+                        Haptics.selection()
+                        SoundEngine.shared.play(.modeSwitch)
+                    }
                 }
                 ToastOverlay(item: $toast)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
+                        SoundEngine.shared.play(.sheetOpen)
                         showingSettings = true
                     } label: {
                         Image(systemName: "gearshape")
@@ -67,6 +71,9 @@ struct HomeView: View {
             }
             .task { await vm.refresh(); await challengesVM.load(); await syncReminders() }
             .refreshable { await vm.refresh(); await challengesVM.load(); await syncReminders() }
+            .onChange(of: vm.goalReachedTick) { _, _ in
+                SoundEngine.shared.play(.achievement)
+            }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load(); await syncReminders() } }) { sheet in
                 // `onSaved` fires AFTER the background save settles — on success
                 // we refresh + show a "Saved/Updated" toast; on failure we surface
@@ -191,6 +198,7 @@ struct HomeView: View {
     private func logButton(for pageMode: PersonStatus) -> some View {
         let accent = Theme.accent(for: pageMode)
         return Button {
+            SoundEngine.shared.play(.sheetOpen)
             sheetMode = .create(preselect: nil, mode: pageMode)
         } label: {
             HStack(spacing: 8) {
@@ -306,6 +314,7 @@ struct HomeView: View {
                 if checkInExpanded {
                     ForEach(vm.followUpSuggestions) { person in
                         Button {
+                            SoundEngine.shared.play(.sheetOpen)
                             sheetMode = .create(preselect: person, mode: .warm)
                         } label: {
                             HStack(spacing: Theme.Spacing.md) {
@@ -367,7 +376,10 @@ struct HomeView: View {
                     .foregroundColor(Theme.textSecondary)
                     .padding(.bottom, Theme.Spacing.sm)
                 ForEach(log) { entry in
-                    LogRow(entry: entry, onTap: { sheetMode = .edit(entry) })
+                    LogRow(entry: entry, onTap: {
+                        SoundEngine.shared.play(.sheetOpen)
+                        sheetMode = .edit(entry)
+                    })
                     if entry.id != log.last?.id {
                         Theme.divider.frame(height: 1)
                     }

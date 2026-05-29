@@ -206,7 +206,10 @@ struct PersonDetailSheet: View {
         }
         .padding(.vertical, 10)
         .contentShape(Rectangle())
-        .onTapGesture { editingInteraction = entry }
+        .onTapGesture {
+            SoundEngine.shared.play(.sheetOpen)
+            editingInteraction = entry
+        }
     }
 
     private func valenceColor(_ valence: Conversation.Valence?) -> Color {
@@ -296,6 +299,7 @@ struct PersonDetailSheet: View {
 
     private var logPastButton: some View {
         Button {
+            SoundEngine.shared.play(.sheetOpen)
             loggingPast = true
         } label: {
             HStack(spacing: 8) {
