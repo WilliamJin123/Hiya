@@ -39,6 +39,7 @@ protocol HiyaRepository: Sendable {
     ) async throws
     func deleteConversation(id: UUID) async throws
     func deletePerson(id: UUID) async throws
+    func updatePersonName(id: UUID, name: String) async throws
     func updatePersonNotes(id: UUID, notes: String?) async throws
     func personNotes(personId: UUID) async throws -> [PersonNote]
     func addPersonNote(personId: UUID, body: String) async throws -> PersonNote
@@ -426,6 +427,18 @@ final class LiveHiyaRepository: HiyaRepository {
         try await client
             .from("conversations")
             .delete()
+            .eq("id", value: id)
+            .execute()
+    }
+
+    /// Rename a person. Logs and notes reference `person_id` (FK) and surface
+    /// the name via a fetch-time join, so every past log/history row shows the
+    /// new name on the next refresh — no cascading update needed.
+    func updatePersonName(id: UUID, name: String) async throws {
+        struct Update: Encodable { let name: String }
+        try await client
+            .from("people")
+            .update(Update(name: name))
             .eq("id", value: id)
             .execute()
     }

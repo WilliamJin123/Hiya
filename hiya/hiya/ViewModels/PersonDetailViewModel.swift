@@ -6,6 +6,10 @@ final class PersonDetailViewModel {
     let repo: HiyaRepository
     let person: Person
 
+    /// The currently-displayed name. Starts at `person.name` and tracks any
+    /// in-sheet rename, so the title and "no notes for X" copy update live
+    /// without forcing the parent to re-open the sheet.
+    var displayName: String
     var notes: [PersonNote] = []
     var interactions: [LoggedConversation] = []
     var errorMessage: String?
@@ -14,6 +18,7 @@ final class PersonDetailViewModel {
     init(repo: HiyaRepository, person: Person) {
         self.repo = repo
         self.person = person
+        self.displayName = person.name
     }
 
     func load() async {
@@ -55,6 +60,24 @@ final class PersonDetailViewModel {
                 notes[idx].body = body
                 notes[idx].updatedAt = .now
             }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Rename the person. Conversations and notes reference `person_id` (FK)
+    /// and surface the name via a join at fetch time, so we just re-fetch
+    /// `interactions` after the update to refresh the history rows in this
+    /// sheet — past logs everywhere else will catch up on their next refresh.
+    func rename(to rawName: String) async {
+        let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != displayName else { return }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await repo.updatePersonName(id: person.id, name: trimmed)
+            displayName = trimmed
+            interactions = (try? await repo.personConversations(personId: person.id)) ?? interactions
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -274,6 +274,12 @@ final class MockHiyaRepository: HiyaRepository {
         if let personId { recomputeColdFlags(personId: personId) }
     }
 
+    func updatePersonName(id: UUID, name: String) async throws {
+        if let err = errorToThrow { errorToThrow = nil; throw err }
+        guard let idx = people.firstIndex(where: { $0.id == id }) else { return }
+        people[idx].name = name
+    }
+
     func updatePersonNotes(id: UUID, notes: String?) async throws {
         if let err = errorToThrow { errorToThrow = nil; throw err }
         guard let idx = people.firstIndex(where: { $0.id == id }) else { return }

@@ -11,6 +11,8 @@ struct PersonDetailSheet: View {
     @State private var isMoving = false
     @State private var loggingPast = false
     @State private var editingInteraction: LoggedConversation?
+    @State private var renaming = false
+    @State private var renameDraft = ""
     @Environment(\.dismiss) private var dismiss
 
     init(repo: HiyaRepository, person: Person) {
@@ -54,9 +56,20 @@ struct PersonDetailSheet: View {
                         .font(Theme.FontScale.body())
                 }
                 ToolbarItem(placement: .principal) {
-                    Text(person.name)
-                        .font(Theme.FontScale.body())
-                        .foregroundColor(Theme.textPrimary)
+                    Button {
+                        renameDraft = vm.displayName
+                        renaming = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(vm.displayName)
+                                .font(Theme.FontScale.body())
+                                .foregroundColor(Theme.textPrimary)
+                            Image(systemName: "pencil")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Theme.textSecondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -64,10 +77,10 @@ struct PersonDetailSheet: View {
         .preferredColorScheme(.dark)
         .task { await vm.load() }
         .sheet(isPresented: $loggingPast, onDismiss: { Task { await vm.load() } }) {
-            LogSheetView(repo: repo, preselectedPerson: person)
+            LogSheetView(repo: repo, preselectedPerson: person) { await vm.load() }
         }
         .sheet(item: $editingInteraction, onDismiss: { Task { await vm.load() } }) { entry in
-            LogSheetView(repo: repo, editing: entry)
+            LogSheetView(repo: repo, editing: entry) { await vm.load() }
         }
         .alert("Edit note", isPresented: Binding(
             get: { editingNote != nil },
@@ -82,6 +95,19 @@ struct PersonDetailSheet: View {
                 editingNote = nil
             }
             Button("Cancel", role: .cancel) { editingNote = nil }
+        }
+        .alert("Rename", isPresented: $renaming) {
+            TextField("Name", text: $renameDraft)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+            Button("Save") {
+                let t = renameDraft
+                Task { await vm.rename(to: t) }
+                renaming = false
+            }
+            Button("Cancel", role: .cancel) { renaming = false }
+        } message: {
+            Text("Fix a typo or update what you call them. Past logs will update too.")
         }
     }
 
@@ -110,7 +136,7 @@ struct PersonDetailSheet: View {
                 .foregroundColor(Theme.textSecondary)
 
             if vm.interactions.isEmpty {
-                Text("No conversations logged with \(person.name) yet.")
+                Text("No conversations logged with \(vm.displayName) yet.")
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)
                     .padding(.vertical, 4)
@@ -186,7 +212,7 @@ struct PersonDetailSheet: View {
             addRow
 
             if vm.notes.isEmpty {
-                Text("No notes yet. Jot down what you learn about \(person.name) — each note is dated.")
+                Text("No notes yet. Jot down what you learn about \(vm.displayName) — each note is dated.")
                     .font(Theme.FontScale.secondary())
                     .foregroundColor(Theme.textSecondary)
                     .padding(.vertical, 4)
