@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var sheetMode: LogSheetMode?
     @State private var showingSettings = false
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
+    @AppStorage("hiya.home.warm.checkin.expanded") private var checkInExpanded = true
     @Environment(NotificationManager.self) private var notifications
     @Environment(\.scenePhase) private var scenePhase
 
@@ -65,11 +66,19 @@ struct HomeView: View {
             .task { await vm.refresh(); await challengesVM.load(); await syncReminders() }
             .refreshable { await vm.refresh(); await challengesVM.load(); await syncReminders() }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load(); await syncReminders() } }) { sheet in
+                // `onSaved` fires AFTER the background save lands — the parent
+                // refreshes a second time so the new row appears once it commits.
+                // The `onDismiss` refresh above still runs immediately for the
+                // cancel path (and harmlessly shows stale data on save).
                 switch sheet {
                 case .create(let p, let mode):
-                    LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode)
+                    LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode) {
+                        await vm.refresh(); await challengesVM.load(); await syncReminders()
+                    }
                 case .edit(let entry):
-                    LogSheetView(repo: repo, editing: entry)
+                    LogSheetView(repo: repo, editing: entry) {
+                        await vm.refresh(); await challengesVM.load(); await syncReminders()
+                    }
                 }
             }
             .alert("Something went wrong", isPresented: Binding(
@@ -249,38 +258,78 @@ struct HomeView: View {
     private var followUpSection: some View {
         if !vm.followUpSuggestions.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text("CHECK IN")
-                    .font(Theme.FontScale.bodyHeading())
-                    .tracking(1.2)
-                    .foregroundColor(Theme.textSecondary)
-                    .padding(.bottom, Theme.Spacing.sm)
-                ForEach(vm.followUpSuggestions) { person in
-                    Button {
-                        sheetMode = .create(preselect: person, mode: .warm)
-                    } label: {
-                        HStack(spacing: Theme.Spacing.md) {
-                            Circle()
-                                .fill(Theme.accentLavender)
-                                .frame(width: 8, height: 8)
-                            Text(person.name)
-                                .font(Theme.FontScale.body())
-                                .foregroundColor(Theme.textPrimary)
-                            Spacer()
-                            Text(relativeLastLogged(person.lastLoggedAt))
+                // Collapsible header so the list doesn't push the TODAY entries
+                // off-screen when logging a quick catch-up. Names preview when
+                // collapsed keeps the section informative at a glance.
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        checkInExpanded.toggle()
+                    }
+                    Haptics.selection()
+                } label: {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Text("CHECK IN")
+                            .font(Theme.FontScale.bodyHeading())
+                            .tracking(1.2)
+                            .foregroundColor(Theme.textSecondary)
+                        if !checkInExpanded {
+                            Text(checkInNamesPreview)
                                 .font(Theme.FontScale.micro())
-                                .tracking(0.8)
-                                .foregroundColor(Theme.textSecondary)
+                                .tracking(0.5)
+                                .foregroundColor(Theme.textSecondary.opacity(0.85))
+                                .lineLimit(1)
+                                .transition(.opacity)
                         }
-                        .padding(.vertical, 10)
-                        .contentShape(Rectangle())
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Theme.textSecondary)
+                            .rotationEffect(.degrees(checkInExpanded ? 0 : -90))
                     }
-                    .buttonStyle(.plain)
-                    if person.id != vm.followUpSuggestions.last?.id {
-                        Theme.divider.frame(height: 1)
+                    .padding(.bottom, Theme.Spacing.sm)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if checkInExpanded {
+                    ForEach(vm.followUpSuggestions) { person in
+                        Button {
+                            sheetMode = .create(preselect: person, mode: .warm)
+                        } label: {
+                            HStack(spacing: Theme.Spacing.md) {
+                                Circle()
+                                    .fill(Theme.accentLavender)
+                                    .frame(width: 8, height: 8)
+                                Text(person.name)
+                                    .font(Theme.FontScale.body())
+                                    .foregroundColor(Theme.textPrimary)
+                                Spacer()
+                                Text(relativeLastLogged(person.lastLoggedAt))
+                                    .font(Theme.FontScale.micro())
+                                    .tracking(0.8)
+                                    .foregroundColor(Theme.textSecondary)
+                            }
+                            .padding(.vertical, 10)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if person.id != vm.followUpSuggestions.last?.id {
+                            Theme.divider.frame(height: 1)
+                        }
                     }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
         }
+    }
+
+    /// "Sam, Alex +2" — shown in the collapsed CHECK IN header so the user can
+    /// decide whether to expand without re-opening the list.
+    private var checkInNamesPreview: String {
+        let names = vm.followUpSuggestions.map(\.name)
+        let shown = names.prefix(2).joined(separator: ", ")
+        let extra = names.count - 2
+        return extra > 0 ? "\(shown) +\(extra)" : shown
     }
 
     private func relativeLastLogged(_ date: Date) -> String {

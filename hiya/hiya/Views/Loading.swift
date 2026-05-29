@@ -97,38 +97,53 @@ struct SkeletonView: View {
     }
 }
 
-/// A breathing dot for inline / button-overlay use where a skeleton would be
-/// overkill (save buttons, single-element mutations). Picks up the tier and
-/// shifts to the lavender→amber gradient at `.extended`.
-struct LoadingPulse: View {
-    var size: CGFloat = 10
+/// A small spinning gradient ring — a miniature of the home `ProgressRingView`.
+/// Used wherever a heavier skeleton would be overkill (auth, account save,
+/// the AppGate splash). Picks up the tier and shifts the gradient + cadence
+/// at `.extended`: amber-leading sweep and a calmer rotation.
+struct LoadingOrb: View {
+    var size: CGFloat = 32
+    var lineWidth: CGFloat = 3.5
     @Environment(\.loadingTier) private var tier
-    @State private var scale: CGFloat = 0.7
-    @State private var glow: CGFloat = 0.0
+    @State private var rotation: Double = 0
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(tier == .extended ? Theme.accentGradient : LinearGradient(
-                    colors: [Theme.accentLavender, Theme.accentLavender],
-                    startPoint: .top, endPoint: .bottom
-                ))
-                .frame(width: size * 2.2, height: size * 2.2)
-                .blur(radius: size * 0.6)
-                .opacity(glow)
+                .stroke(Theme.ringTrack, lineWidth: lineWidth)
             Circle()
-                .fill(tier == .extended ? Theme.accentAmber : Theme.accentLavender)
-                .frame(width: size, height: size)
-                .scaleEffect(scale)
+                .trim(from: 0, to: 0.72)
+                .stroke(
+                    tier == .extended ? Theme.accentGradientReversed : Theme.accentGradient,
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(rotation))
         }
-        .frame(width: size * 2.2, height: size * 2.2)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                scale = 1.0
-                glow = 0.55
-            }
+        .frame(width: size, height: size)
+        .shadow(
+            color: (tier == .extended ? Theme.accentAmber : Theme.accentLavender).opacity(0.35),
+            radius: size * 0.25
+        )
+        .onAppear { startSpinning() }
+        .onChange(of: tier) { _, _ in startSpinning() }
+    }
+
+    private func startSpinning() {
+        // Restart from 0 so the new cadence takes effect cleanly when the tier
+        // changes (otherwise SwiftUI would keep the prior animation's velocity).
+        rotation = 0
+        let period: Double = tier == .extended ? 1.8 : 1.1
+        withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
+            rotation = 360
         }
     }
+}
+
+/// Back-compat shim — kept as a typealias-style wrapper because earlier code
+/// used `LoadingPulse`. New code should call `LoadingOrb` directly.
+struct LoadingPulse: View {
+    var size: CGFloat = 10
+    var body: some View { LoadingOrb(size: size * 2.4, lineWidth: max(2, size * 0.32)) }
 }
 
 // MARK: - Delay-band wrapper
@@ -199,9 +214,11 @@ extension View {
 
 // MARK: - Working overlay (writes)
 
-/// Small dimmed overlay with a `LoadingPulse` — for save/mutation flows where
-/// the user just tapped a button. Same 2-tier delay band: nothing below 250 ms,
-/// pulse between 250 ms and 1.5 s, with a hint label past 1.5 s.
+/// Non-blocking in-flight indicator. A small `LoadingOrb` floats in the
+/// top-trailing corner while a save / mutation is running, so the user can keep
+/// typing or dismiss the sheet — no dimmed modal, no "frozen" feel. Same 2-tier
+/// delay band as `delayedLoading`: nothing below 250 ms, orb between 250 ms and
+/// 1.5 s, with a hint label appearing past 1.5 s.
 struct WorkingOverlay: View {
     let isWorking: Bool
     var hint: String = "saving…"
@@ -209,29 +226,37 @@ struct WorkingOverlay: View {
     @State private var phase: LoadingTier = .hidden
 
     var body: some View {
-        ZStack {
-            if isWorking && phase != .hidden {
-                Color.black.opacity(0.25)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                VStack(spacing: Theme.Spacing.md) {
-                    LoadingPulse(size: 14)
-                        .environment(\.loadingTier, phase)
-                    if phase == .extended {
-                        Text(hint)
-                            .font(Theme.FontScale.secondary())
-                            .foregroundColor(Theme.textSecondary)
-                            .transition(.opacity)
+        VStack {
+            HStack {
+                Spacer()
+                if isWorking && phase != .hidden {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        LoadingOrb(size: 22, lineWidth: 2.5)
+                            .environment(\.loadingTier, phase)
+                        if phase == .extended {
+                            Text(hint)
+                                .font(Theme.FontScale.micro())
+                                .tracking(0.6)
+                                .foregroundColor(Theme.textSecondary)
+                                .transition(.opacity)
+                        }
                     }
+                    .padding(.horizontal, Theme.Spacing.sm + 2)
+                    .padding(.vertical, Theme.Spacing.xs + 2)
+                    .background(
+                        Capsule().fill(Theme.surface.opacity(0.92))
+                    )
+                    .overlay(
+                        Capsule().stroke(Theme.divider, lineWidth: 1)
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: .topTrailing)))
                 }
-                .padding(Theme.Spacing.lg)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.Radius.md)
-                        .fill(Theme.surface)
-                )
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
+            Spacer()
         }
+        .padding(.top, Theme.Spacing.sm)
+        .padding(.trailing, Theme.Spacing.md)
+        .allowsHitTesting(false) // never block taps on the underlying form
         .animation(.easeInOut(duration: 0.22), value: phase)
         .animation(.easeInOut(duration: 0.22), value: isWorking)
         .task(id: isWorking) {

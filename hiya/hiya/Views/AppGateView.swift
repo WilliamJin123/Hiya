@@ -18,7 +18,7 @@ struct AppGateView: View {
             case .loading:
                 ZStack {
                     Theme.bgGradient.ignoresSafeArea()
-                    LoadingPulse(size: 14)
+                    LoadingOrb(size: 44, lineWidth: 4)
                 }
                 .transition(.opacity)
             case .app:

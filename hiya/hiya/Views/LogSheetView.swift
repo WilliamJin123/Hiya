@@ -2,6 +2,9 @@ import SwiftUI
 
 struct LogSheetView: View {
     let repo: HiyaRepository
+    /// Called once the (background) save commits. Lets the parent refresh its
+    /// VMs without keeping the sheet open while the network round-trip runs.
+    var onSaved: () async -> Void = {}
     @State private var vm: LogSheetViewModel
     @State private var showingDeleteConfirm = false
     @State private var locationSearch = LocationSearchModel()
@@ -12,9 +15,11 @@ struct LogSheetView: View {
         repo: HiyaRepository,
         editing: LoggedConversation? = nil,
         preselectedPerson: Person? = nil,
-        creationMode: PersonStatus = .cold
+        creationMode: PersonStatus = .cold,
+        onSaved: @escaping () async -> Void = {}
     ) {
         self.repo = repo
+        self.onSaved = onSaved
         _vm = State(initialValue: LogSheetViewModel(
             repo: repo,
             editing: editing,
@@ -363,12 +368,18 @@ struct LogSheetView: View {
 
     private var saveButton: some View {
         Button {
-            Task {
-                if await vm.save() {
-                    Haptics.success()
-                    dismiss()
-                }
+            // Dismiss-first so the user never sees a frozen sheet — the save
+            // runs in the background and the parent refreshes via `onSaved`
+            // once the row commits. The Task captures `vm` strongly, so the
+            // view model outlives the sheet teardown until the work finishes.
+            guard vm.canSave, !vm.isSaving else { return }
+            Haptics.success()
+            let vmRef = vm
+            let after = onSaved
+            Task { @MainActor in
+                if await vmRef.save() { await after() }
             }
+            dismiss()
         } label: {
             Text(saveButtonTitle)
                 .font(Theme.FontScale.body())
