@@ -8,6 +8,10 @@ enum Haptics {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
+    static func error() {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
+
     static func selection() {
         UISelectionFeedbackGenerator().selectionChanged()
     }

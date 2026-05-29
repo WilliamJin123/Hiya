@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var challengesVM: ChallengesViewModel
     @State private var sheetMode: LogSheetMode?
     @State private var showingSettings = false
+    @State private var toast: ToastItem?
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
     @AppStorage("hiya.home.warm.checkin.expanded") private var checkInExpanded = true
     @Environment(NotificationManager.self) private var notifications
@@ -34,6 +35,7 @@ struct HomeView: View {
                     .animation(.easeInOut(duration: 0.22), value: mode)
                     .onChange(of: mode) { _, _ in Haptics.selection() }
                 }
+                ToastOverlay(item: $toast)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -66,18 +68,28 @@ struct HomeView: View {
             .task { await vm.refresh(); await challengesVM.load(); await syncReminders() }
             .refreshable { await vm.refresh(); await challengesVM.load(); await syncReminders() }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load(); await syncReminders() } }) { sheet in
-                // `onSaved` fires AFTER the background save lands — the parent
-                // refreshes a second time so the new row appears once it commits.
-                // The `onDismiss` refresh above still runs immediately for the
-                // cancel path (and harmlessly shows stale data on save).
+                // `onSaved` fires AFTER the background save settles — on success
+                // we refresh + show a "Saved/Updated" toast; on failure we surface
+                // the reason. `onDismiss` above still covers the cancel path (and
+                // harmlessly shows stale data on save until this callback lands).
                 switch sheet {
                 case .create(let p, let mode):
-                    LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode) {
-                        await vm.refresh(); await challengesVM.load(); await syncReminders()
+                    LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode) { ok, err in
+                        if ok {
+                            await vm.refresh(); await challengesVM.load(); await syncReminders()
+                            toast = .success("Saved")
+                        } else {
+                            toast = .failure(err ?? "Couldn't save")
+                        }
                     }
                 case .edit(let entry):
-                    LogSheetView(repo: repo, editing: entry) {
-                        await vm.refresh(); await challengesVM.load(); await syncReminders()
+                    LogSheetView(repo: repo, editing: entry) { ok, err in
+                        if ok {
+                            await vm.refresh(); await challengesVM.load(); await syncReminders()
+                            toast = .success("Updated")
+                        } else {
+                            toast = .failure(err ?? "Couldn't save")
+                        }
                     }
                 }
             }

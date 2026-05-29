@@ -2,9 +2,11 @@ import SwiftUI
 
 struct LogSheetView: View {
     let repo: HiyaRepository
-    /// Called once the (background) save commits. Lets the parent refresh its
-    /// VMs without keeping the sheet open while the network round-trip runs.
-    var onSaved: () async -> Void = {}
+    /// Called once the (background) save settles. `success` tells the parent
+    /// whether to refresh + show a success toast, or surface the error string
+    /// in a failure toast — the sheet itself is already dismissed, so this is
+    /// the only place those signals can land.
+    var onSaved: (_ success: Bool, _ errorMessage: String?) async -> Void = { _, _ in }
     @State private var vm: LogSheetViewModel
     @State private var showingDeleteConfirm = false
     @State private var locationSearch = LocationSearchModel()
@@ -16,7 +18,7 @@ struct LogSheetView: View {
         editing: LoggedConversation? = nil,
         preselectedPerson: Person? = nil,
         creationMode: PersonStatus = .cold,
-        onSaved: @escaping () async -> Void = {}
+        onSaved: @escaping (_ success: Bool, _ errorMessage: String?) async -> Void = { _, _ in }
     ) {
         self.repo = repo
         self.onSaved = onSaved
@@ -369,15 +371,19 @@ struct LogSheetView: View {
     private var saveButton: some View {
         Button {
             // Dismiss-first so the user never sees a frozen sheet — the save
-            // runs in the background and the parent refreshes via `onSaved`
-            // once the row commits. The Task captures `vm` strongly, so the
-            // view model outlives the sheet teardown until the work finishes.
+            // runs in the background and the parent surfaces a toast via
+            // `onSaved` once the row commits (or fails). The Task captures
+            // `vm` strongly, so the view model outlives the sheet teardown
+            // until the work finishes. Haptic fires on the *actual* result,
+            // not optimistically on tap.
             guard vm.canSave, !vm.isSaving else { return }
-            Haptics.success()
+            Haptics.selection()
             let vmRef = vm
             let after = onSaved
             Task { @MainActor in
-                if await vmRef.save() { await after() }
+                let ok = await vmRef.save()
+                if ok { Haptics.success() } else { Haptics.error() }
+                await after(ok, ok ? nil : vmRef.errorMessage)
             }
             dismiss()
         } label: {
