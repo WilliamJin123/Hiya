@@ -46,11 +46,37 @@ enum SoundSynth {
                            decay: tone.decaySec,
                            total: tone.durationSec)
         let twoPi = 2.0 * .pi
-        let carrierPhase = twoPi * tone.frequencyHz * localT
+        let carrierPhase = carrierPhase(of: tone, atLocalTime: localT) * twoPi
+        // Modulator stays anchored to the static frequency — sweeping the
+        // modulator too would muddy the timbre during fast pitch glides.
         let modFrequency = tone.frequencyHz * tone.fmRatio
         let modPhase = twoPi * modFrequency * localT
         let modulator = sin(modPhase) * tone.fmIndex
         return sin(carrierPhase + modulator) * env * tone.amplitude
+    }
+
+    /// Carrier *phase in cycles* (multiply by 2π to feed `sin`). When the
+    /// pitch curve is non-trivial, the instantaneous frequency changes over
+    /// time, so the phase is the integral of `f(τ)` from 0 to `localT`.
+    /// Closed-form for both linear and exponential keeps this O(1) per sample.
+    private static func carrierPhase(of tone: ToneSpec, atLocalTime localT: Double) -> Double {
+        let f1 = tone.frequencyHz
+        let f0 = tone.frequencyHz * tone.pitchStartRatio
+        let d  = tone.durationSec
+        switch tone.pitchCurve {
+        case .none:
+            return f1 * localT
+        case .linear:
+            // f(τ) = f0 + (f1-f0)*(τ/d) → ∫₀ᵗ f(τ)dτ = f0·t + (f1-f0)·t²/(2d)
+            return f0 * localT + (f1 - f0) * localT * localT / (2.0 * d)
+        case .exponential:
+            // Degenerate cases collapse to the no-sweep formula.
+            guard f0 > 0, f1 > 0, f0 != f1 else { return f1 * localT }
+            // f(τ) = f0·(f1/f0)^(τ/d) → ∫ = f0·d/ln(r) · (r^(t/d) − 1), r = f1/f0
+            let ratio = f1 / f0
+            let lnRatio = log(ratio)
+            return f0 * d / lnRatio * (pow(ratio, localT / d) - 1.0)
+        }
     }
 
     /// Linear attack, exponential decay, plus an 8 ms linear tail fade so the

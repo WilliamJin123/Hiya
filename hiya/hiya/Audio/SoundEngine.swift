@@ -64,10 +64,10 @@ final class SoundEngine {
                   let player = try? AVAudioPlayer(data: data) else {
                 continue
             }
-            // ~50% of full volume — synthesized samples are tanh-clipped to
+            // ~70% of full volume — synthesized samples are tanh-clipped to
             // [-1, 1], so this is plenty audible on speaker without being
             // shouty in earbuds.
-            player.volume = 0.5
+            player.volume = 0.7
             player.prepareToPlay()
             players[effect] = player
         }

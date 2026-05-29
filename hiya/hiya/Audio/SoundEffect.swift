@@ -4,11 +4,11 @@ import Foundation
 /// `SoundSynth` renders to a PCM buffer once at launch — `SoundEngine` plays
 /// the cached buffer on demand, so taps stay cheap.
 ///
-/// **Aesthetic**: tonal but not obviously musical. Frequencies are picked off
-/// the equal-tempered grid (250 Hz instead of C4's 261.63) and upper voices
-/// sit at non-standard ratios (≈1.47×, ≈1.18×) so the ear hears "pitched
-/// sound design" rather than "I recognize that chord". Pure sine, slow
-/// attacks (20–80 ms), long exponential tails for the elegant side.
+/// **Aesthetic**: musical chord underneath + pitched sweep on top — Rocket-
+/// League-flavored sound design. Real intervals (perfect 5ths, octaves, major
+/// triads) make the chords sit pleasantly. Each save/open also has a fast
+/// pitched zip (50–120 ms) layered in for "snap" — that's the synthy/game
+/// half. Sustained voices use slow attacks (25–80 ms) so nothing barks.
 enum SoundEffect: String, Sendable, CaseIterable {
     case saveSuccess
     case saveFailure
@@ -18,12 +18,28 @@ enum SoundEffect: String, Sendable, CaseIterable {
     case sheetOpen
 }
 
+/// Shape of a pitch sweep over the tone's duration. `none` keeps the carrier
+/// at `frequencyHz` (the previous, unswept behavior). `linear` and
+/// `exponential` interpolate from `frequencyHz * pitchStartRatio` at t=0 to
+/// `frequencyHz` at t=durationSec — exponential matches how the ear hears
+/// pitch (1 octave = ratio 2, regardless of base frequency).
+enum PitchSweepCurve: Sendable, Equatable {
+    case none
+    case linear
+    case exponential
+}
+
 /// One sine + FM tone with its own simple attack-decay envelope. Multiple
 /// `ToneSpec`s in a `SoundSpec` can overlap (`startSec` offsets).
 struct ToneSpec: Sendable, Equatable {
     let startSec: Double      // offset within the SoundSpec when this tone begins
     let durationSec: Double   // how long the tone is audible
-    let frequencyHz: Double
+    let frequencyHz: Double   // target/end frequency; also the static pitch when curve == .none
+    /// Multiplier applied to `frequencyHz` to get the *start* frequency. `1.0`
+    /// = no sweep. `2.0` starts one octave up and glides down; `0.5` starts
+    /// one octave down and rises. Combined with `pitchCurve`.
+    let pitchStartRatio: Double
+    let pitchCurve: PitchSweepCurve
     let attackSec: Double     // linear ramp-in; 0..durationSec
     let decaySec: Double      // exponential decay time constant (τ in `exp(-t/τ)`)
     let amplitude: Double     // 0..1
@@ -36,6 +52,8 @@ struct ToneSpec: Sendable, Equatable {
         startSec: Double = 0,
         durationSec: Double,
         frequencyHz: Double,
+        pitchStartRatio: Double = 1.0,
+        pitchCurve: PitchSweepCurve = .none,
         attackSec: Double = 0.005,
         decaySec: Double = 0.18,
         amplitude: Double = 0.4,
@@ -45,6 +63,8 @@ struct ToneSpec: Sendable, Equatable {
         self.startSec = startSec
         self.durationSec = durationSec
         self.frequencyHz = frequencyHz
+        self.pitchStartRatio = pitchStartRatio
+        self.pitchCurve = pitchCurve
         self.attackSec = attackSec
         self.decaySec = decaySec
         self.amplitude = amplitude
@@ -65,90 +85,109 @@ extension SoundEffect {
     /// Tone/envelope blueprint for this effect. Tuned by ear; tweak here to
     /// re-character a moment without touching the engine or call sites.
     ///
-    /// Knobs that drive the "elegant vs. game-y" axis (from most to least
-    /// impactful):
-    ///   - `attackSec`     — 3-5 ms = percussive click; 20-45 ms = gentle bloom
-    ///   - `fmIndex`       — 0 = pure sine (clean / breath); ≥1 = bell / synth
-    ///   - chord stacking  — simultaneous tones at chord intervals = richness
-    ///   - register        — C4-A4 = warm; above C5 = bright / arcade-y
-    ///   - `decaySec`      — 0.05-0.15 s = stab; 0.4-0.7 s = lingering tail
+    /// Two layers per effect (where it makes sense):
+    ///   1. **Sweep voice**  — short pitched zip (`pitchCurve: .exponential`)
+    ///      that lands on a chord tone. Adds the Rocket-League snap.
+    ///   2. **Chord voices** — sustained tones at real musical intervals
+    ///      (perfect 5ths, octaves, triads). Slow attack so they bloom in
+    ///      under the zip instead of competing with it.
+    ///
+    /// Knobs:
+    ///   - `pitchStartRatio` — `>1` zips down into the tone; `<1` zips up
+    ///   - `attackSec`       — 3-10 ms for the zip; 25-80 ms for chord voices
+    ///   - `decaySec`        — short on the zip (0.04-0.10 s), long on chord
+    ///                         voices (0.35-0.65 s) for a lingering tail
     var spec: SoundSpec {
         switch self {
         case .saveSuccess:
-            // 250 + 378 — fundamental + shadow at ≈1.51× (off perfect fifth).
-            // Tonal pair, not a recognizable chord.
+            // D4 + A4 perfect fifth bloom, with a quick downward zip from D5
+            // landing on D4 — the zip gives the "pickup" snap, the chord
+            // underneath gives the pleasant resolution.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.85, frequencyHz: 250.0,
-                             attackSec: 0.030, decaySec: 0.55, amplitude: 0.18,
-                             fmIndex: 0.0, fmRatio: 2),
-                    ToneSpec(startSec: 0, durationSec: 0.90, frequencyHz: 378.0,
-                             attackSec: 0.030, decaySec: 0.55, amplitude: 0.13,
-                             fmIndex: 0.0, fmRatio: 2),
+                    // Zip: D5 → D4 over 80 ms (one octave down, exponential).
+                    ToneSpec(startSec: 0.00, durationSec: 0.10, frequencyHz: 293.66,
+                             pitchStartRatio: 2.0, pitchCurve: .exponential,
+                             attackSec: 0.003, decaySec: 0.06, amplitude: 0.11),
+                    // Chord: D4.
+                    ToneSpec(startSec: 0.04, durationSec: 0.85, frequencyHz: 293.66,
+                             attackSec: 0.030, decaySec: 0.45, amplitude: 0.15),
+                    // Chord: A4 (perfect 5th above).
+                    ToneSpec(startSec: 0.05, durationSec: 0.85, frequencyHz: 440.00,
+                             attackSec: 0.035, decaySec: 0.45, amplitude: 0.12),
                 ],
-                totalDurationSec: 1.20
+                totalDurationSec: 1.10
             )
         case .saveFailure:
-            // 200 + 236 — narrow interval (≈1.18×), neutral rather than alarmed.
+            // Soft descending minor-third glide (G3 → E3). Single voice,
+            // no chord — "didn't land" without sounding alarmed.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.75, frequencyHz: 200.0,
-                             attackSec: 0.035, decaySec: 0.50, amplitude: 0.18,
-                             fmIndex: 0.0, fmRatio: 2),
-                    ToneSpec(startSec: 0, durationSec: 0.75, frequencyHz: 236.0,
-                             attackSec: 0.035, decaySec: 0.50, amplitude: 0.15,
-                             fmIndex: 0.0, fmRatio: 2),
+                    ToneSpec(startSec: 0, durationSec: 0.55, frequencyHz: 164.81,
+                             pitchStartRatio: 196.0 / 164.81, pitchCurve: .exponential,
+                             attackSec: 0.020, decaySec: 0.32, amplitude: 0.17),
                 ],
-                totalDurationSec: 1.00
+                totalDurationSec: 0.80
             )
         case .achievement:
-            // Three voices, staggered entrance, slightly detuned octave-ish
-            // span (220 → 331 → 444). Reads as a swell, not an arpeggio.
+            // Full C-major triad with octave (C4-E4-G4-C5), staggered entry,
+            // led by an upward swept voice that arrives first. Reads as a
+            // triumphant swell — RL goal-scored energy without the cheer.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0.00, durationSec: 1.30, frequencyHz: 220.0,
-                             attackSec: 0.080, decaySec: 0.60, amplitude: 0.14,
-                             fmIndex: 0.0, fmRatio: 2),
-                    ToneSpec(startSec: 0.10, durationSec: 1.20, frequencyHz: 331.0,
-                             attackSec: 0.080, decaySec: 0.60, amplitude: 0.13,
-                             fmIndex: 0.0, fmRatio: 2),
-                    ToneSpec(startSec: 0.22, durationSec: 1.20, frequencyHz: 444.0,
-                             attackSec: 0.090, decaySec: 0.65, amplitude: 0.12,
-                             fmIndex: 0.0, fmRatio: 2),
+                    // Lead sweep: A3 → C5 over 180 ms — sets up the chord.
+                    ToneSpec(startSec: 0.00, durationSec: 0.22, frequencyHz: 523.25,
+                             pitchStartRatio: 220.0 / 523.25, pitchCurve: .exponential,
+                             attackSec: 0.005, decaySec: 0.14, amplitude: 0.10),
+                    // C4.
+                    ToneSpec(startSec: 0.06, durationSec: 1.40, frequencyHz: 261.63,
+                             attackSec: 0.050, decaySec: 0.65, amplitude: 0.13),
+                    // E4 (major 3rd).
+                    ToneSpec(startSec: 0.12, durationSec: 1.35, frequencyHz: 329.63,
+                             attackSec: 0.070, decaySec: 0.65, amplitude: 0.12),
+                    // G4 (perfect 5th).
+                    ToneSpec(startSec: 0.20, durationSec: 1.30, frequencyHz: 392.00,
+                             attackSec: 0.075, decaySec: 0.65, amplitude: 0.11),
+                    // C5 (octave) — top voice, slightly delayed for sparkle.
+                    ToneSpec(startSec: 0.30, durationSec: 1.25, frequencyHz: 523.25,
+                             attackSec: 0.080, decaySec: 0.70, amplitude: 0.09),
                 ],
                 totalDurationSec: 1.80
             )
         case .modeSwitch:
-            // Single 290 Hz tone (slightly off D4). Pure sine, brief.
+            // Quick upward zip A3 → A4 (octave). RL menu-nav feel — short,
+            // pitched, doesn't linger.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.40, frequencyHz: 290.0,
-                             attackSec: 0.022, decaySec: 0.25, amplitude: 0.14,
-                             fmIndex: 0.0, fmRatio: 2),
+                    ToneSpec(startSec: 0, durationSec: 0.18, frequencyHz: 440.0,
+                             pitchStartRatio: 0.5, pitchCurve: .exponential,
+                             attackSec: 0.004, decaySec: 0.11, amplitude: 0.13),
                 ],
-                totalDurationSec: 0.50
+                totalDurationSec: 0.28
             )
         case .tab:
-            // 340 Hz dot — quietest of all. Slightly different from modeSwitch
-            // so the two don't blur together.
+            // Soft pitched click — short downward zip E5 → A4. Quieter than
+            // modeSwitch so frequent tab presses don't fatigue.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.22, frequencyHz: 340.0,
-                             attackSec: 0.012, decaySec: 0.16, amplitude: 0.09,
-                             fmIndex: 0.0, fmRatio: 2),
+                    ToneSpec(startSec: 0, durationSec: 0.10, frequencyHz: 440.0,
+                             pitchStartRatio: 659.25 / 440.0, pitchCurve: .exponential,
+                             attackSec: 0.003, decaySec: 0.06, amplitude: 0.09),
                 ],
-                totalDurationSec: 0.30
+                totalDurationSec: 0.18
             )
         case .sheetOpen:
-            // 320 + 470 — ≈1.47× ratio, tonal but neither a fourth nor fifth.
+            // Upward whoosh from C4 to G4 (perfect 5th rise) with a sustained
+            // G4 underneath — sheet sliding up motion.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.60, frequencyHz: 320.0,
-                             attackSec: 0.045, decaySec: 0.30, amplitude: 0.13,
-                             fmIndex: 0.0, fmRatio: 2),
-                    ToneSpec(startSec: 0, durationSec: 0.60, frequencyHz: 470.0,
-                             attackSec: 0.045, decaySec: 0.30, amplitude: 0.12,
-                             fmIndex: 0.0, fmRatio: 2),
+                    // Whoosh: C4 → G4 over 200 ms.
+                    ToneSpec(startSec: 0.00, durationSec: 0.24, frequencyHz: 392.00,
+                             pitchStartRatio: 261.63 / 392.00, pitchCurve: .exponential,
+                             attackSec: 0.008, decaySec: 0.16, amplitude: 0.11),
+                    // Sustain: G4 settles in after the whoosh lands.
+                    ToneSpec(startSec: 0.06, durationSec: 0.55, frequencyHz: 392.00,
+                             attackSec: 0.040, decaySec: 0.30, amplitude: 0.10),
                 ],
                 totalDurationSec: 0.80
             )

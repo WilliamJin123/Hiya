@@ -57,6 +57,49 @@ struct SoundSynthTests {
         }
     }
 
+    @Test func sweep_degenerateRatioMatchesUnswept() throws {
+        // A swept tone with pitchStartRatio == 1.0 must produce the same audio
+        // as the unswept (.none) path — both formulas collapse to f·t. This
+        // protects against subtle drift if either branch is changed later.
+        let unswept = SoundSpec(tones: [
+            ToneSpec(startSec: 0, durationSec: 0.20, frequencyHz: 440.0,
+                     attackSec: 0.005, decaySec: 0.10, amplitude: 0.5),
+        ], totalDurationSec: 0.20)
+        let swept = SoundSpec(tones: [
+            ToneSpec(startSec: 0, durationSec: 0.20, frequencyHz: 440.0,
+                     pitchStartRatio: 1.0, pitchCurve: .exponential,
+                     attackSec: 0.005, decaySec: 0.10, amplitude: 0.5),
+        ], totalDurationSec: 0.20)
+        let a = try #require(SoundSynth.render(spec: unswept)?.floatChannelData?[0])
+        let b = try #require(SoundSynth.render(spec: swept)?.floatChannelData?[0])
+        // Sample at a handful of phase-sensitive points across the buffer.
+        let length = Int(0.20 * SoundSynth.sampleRate)
+        for i in stride(from: 0, to: length, by: 441) {
+            #expect(abs(a[i] - b[i]) < 1e-5,
+                    "swept f0==f1 should equal unswept at frame \(i): \(a[i]) vs \(b[i])")
+        }
+    }
+
+    @Test func sweep_producesFiniteSamples() throws {
+        // Wide pitch sweeps run through `pow` and `log` — guard against any
+        // value producing NaN/Inf, which would corrupt the WAV converter.
+        let spec = SoundSpec(tones: [
+            // 2-octave downward exponential sweep (D6 → D4).
+            ToneSpec(startSec: 0, durationSec: 0.30, frequencyHz: 293.66,
+                     pitchStartRatio: 4.0, pitchCurve: .exponential,
+                     attackSec: 0.005, decaySec: 0.20, amplitude: 0.6),
+            // 2-octave upward linear sweep (A2 → A4).
+            ToneSpec(startSec: 0, durationSec: 0.30, frequencyHz: 440.0,
+                     pitchStartRatio: 0.25, pitchCurve: .linear,
+                     attackSec: 0.005, decaySec: 0.20, amplitude: 0.4),
+        ], totalDurationSec: 0.30)
+        let buffer = try #require(SoundSynth.render(spec: spec))
+        let samples = try #require(buffer.floatChannelData?[0])
+        for i in 0..<Int(buffer.frameLength) {
+            #expect(samples[i].isFinite, "sample \(i) was not finite: \(samples[i])")
+        }
+    }
+
     @Test func renderAmbience_loopsCleanly() throws {
         // The drone has to start AND end at near-zero so the loop seam
         // doesn't click. With 60/90/120 Hz voices over 5 s, every voice
