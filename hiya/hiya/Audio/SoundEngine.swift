@@ -46,20 +46,10 @@ final class SoundEngine {
         }
         isStarted = true
 
-        engine.attach(reverb)
-        for player in players { engine.attach(player) }
-
-        let format = AVAudioFormat(standardFormatWithSampleRate: SoundSynth.sampleRate, channels: 1)
-        for player in players {
-            engine.connect(player, to: reverb, format: format)
-        }
-        engine.connect(reverb, to: engine.mainMixerNode, format: format)
-
-        // SmallRoom + ~28% wet keeps the tail short and present — feels
-        // "in the room" rather than cathedral-y. Tune here to re-character.
-        reverb.loadFactoryPreset(.smallRoom)
-        reverb.wetDryMix = 28
-
+        // Activate the audio session BEFORE wiring nodes. Connecting nodes
+        // before the session is active can leave players in a disconnected
+        // state that throws `'player started when in a disconnected state'`
+        // on the first play() call.
         // .ambient: mixes with other apps' audio (Spotify, podcasts) and
         // respects the silent switch — the polite choice for a journaling app.
         // Guarded for iOS/tvOS/watchOS; AVAudioSession isn't on macOS, and we
@@ -70,26 +60,52 @@ final class SoundEngine {
         try? session.setActive(true, options: [])
         #endif
 
+        engine.attach(reverb)
+        for player in players { engine.attach(player) }
+
+        // SmallRoom + ~28% wet keeps the tail short and present — feels
+        // "in the room" rather than cathedral-y. Tune here to re-character.
+        reverb.loadFactoryPreset(.smallRoom)
+        reverb.wetDryMix = 28
+
+        let format = AVAudioFormat(standardFormatWithSampleRate: SoundSynth.sampleRate, channels: 1)
+        for player in players {
+            engine.connect(player, to: reverb, format: format)
+        }
+        engine.connect(reverb, to: engine.mainMixerNode, format: format)
+
         for effect in SoundEffect.allCases {
             buffers[effect] = SoundSynth.render(spec: effect.spec)
         }
 
         do {
             try engine.start()
-            for player in players { player.play() }
         } catch {
             // Engine failed to spin up (rare; silent simulator / no output route).
             // Reset so a future start() can retry, and play() will no-op silently.
             isStarted = false
         }
+        // Note: do NOT call `player.play()` here. Pre-playing before any
+        // buffer is scheduled is what triggers the "disconnected state"
+        // crash on some iOS versions. Each play(_:) starts its player
+        // lazily on first use; `engine.isRunning` is the gate.
     }
 
     /// Fire-and-forget. Cheap; safe to call from any tap. No-op when sounds
-    /// are disabled or the engine never started.
+    /// are disabled, the engine never started, or the engine got torn down
+    /// by an interruption (incoming call, route change).
     func play(_ effect: SoundEffect) {
         guard isStarted, isEnabled, let buffer = buffers[effect] else { return }
+        guard engine.isRunning else { return }
         let player = players[nextPlayerIndex]
         nextPlayerIndex = (nextPlayerIndex + 1) % players.count
         player.scheduleBuffer(buffer, at: nil, options: [.interrupts], completionHandler: nil)
+        // Lazily kick the player on first use — and on every use, since
+        // `.interrupts` doesn't auto-resume a stopped player. `isPlaying`
+        // means "the player has been told to play and isn't stopped"; it
+        // stays true between scheduled buffers.
+        if !player.isPlaying {
+            player.play()
+        }
     }
 }
