@@ -11,6 +11,11 @@ struct LogSheetView: View {
     @State private var showingDeleteConfirm = false
     @State private var locationSearch = LocationSearchModel()
     @FocusState private var locationFocused: Bool
+    /// Collapses the full list of existing warm people under the "Add a person"
+    /// field. Default off so the list isn't in the way when the user already
+    /// knows the name they're typing; the toggle exposes the full list (and
+    /// any search query auto-expands it regardless).
+    @AppStorage("hiya.logsheet.people.expanded") private var peopleListExpanded = false
     @Environment(\.dismiss) private var dismiss
 
     init(
@@ -126,54 +131,96 @@ struct LogSheetView: View {
                         .padding(12)
                         .background(Theme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-                    if !vm.filteredPeople.isEmpty || vm.canAddTypedName {
-                        VStack(spacing: Theme.Spacing.xs) {
-                            ForEach(vm.filteredPeople) { person in
-                                Button {
-                                    vm.addExisting(person)
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(person.name)
-                                            .font(Theme.FontScale.body())
-                                            .foregroundColor(Theme.textPrimary)
-                                        Text(personSubtitle(person))
-                                            .font(Theme.FontScale.micro())
-                                            .tracking(0.5)
-                                            .foregroundColor(Theme.textSecondary)
-                                            .lineLimit(1)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 10)
-                                    .background(Theme.surface)
-                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            if vm.canAddTypedName {
-                                Button {
-                                    vm.addNew(vm.searchText)
-                                } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .foregroundColor(Theme.accentLavender)
-                                        Text("Add new \u{201C}\(vm.trimmedSearch)\u{201D}")
-                                            .font(Theme.FontScale.body())
-                                            .foregroundColor(Theme.textPrimary)
-                                        Spacer()
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 10)
-                                    .background(Theme.surface)
-                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
+
+                    let hasSearch = !vm.trimmedSearch.isEmpty
+                    // No search → show the chevron toggle (only if there's a
+                    // list to toggle to). Once the user types, the list auto-
+                    // expands so they can see matches without an extra tap.
+                    if !hasSearch && !vm.filteredPeople.isEmpty {
+                        peopleListToggleHeader
+                    }
+                    if (hasSearch || peopleListExpanded)
+                        && (!vm.filteredPeople.isEmpty || vm.canAddTypedName) {
+                        peopleList
                     }
                 }
             }
         }
+    }
+
+    private var peopleListToggleHeader: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                peopleListExpanded.toggle()
+            }
+            Haptics.selection()
+        } label: {
+            HStack(spacing: 6) {
+                Text(peopleListExpanded ? "Hide existing" : "Show existing")
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.6)
+                    .foregroundColor(Theme.textSecondary)
+                Text("(\(vm.filteredPeople.count))")
+                    .font(Theme.FontScale.micro())
+                    .tracking(0.6)
+                    .foregroundColor(Theme.textSecondary.opacity(0.7))
+                Spacer()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Theme.textSecondary)
+                    .rotationEffect(.degrees(peopleListExpanded ? 0 : -90))
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var peopleList: some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            ForEach(vm.filteredPeople) { person in
+                Button {
+                    vm.addExisting(person)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(person.name)
+                            .font(Theme.FontScale.body())
+                            .foregroundColor(Theme.textPrimary)
+                        Text(personSubtitle(person))
+                            .font(Theme.FontScale.micro())
+                            .tracking(0.5)
+                            .foregroundColor(Theme.textSecondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Theme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                }
+                .buttonStyle(.plain)
+            }
+            if vm.canAddTypedName {
+                Button {
+                    vm.addNew(vm.searchText)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(Theme.accentLavender)
+                        Text("Add new \u{201C}\(vm.trimmedSearch)\u{201D}")
+                            .font(Theme.FontScale.body())
+                            .foregroundColor(Theme.textPrimary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Theme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private func personChip(_ target: LogTarget) -> some View {

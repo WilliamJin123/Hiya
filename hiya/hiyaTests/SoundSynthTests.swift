@@ -70,8 +70,13 @@ struct SoundSynthTests {
                      pitchStartRatio: 1.0, pitchCurve: .exponential,
                      attackSec: 0.005, decaySec: 0.10, amplitude: 0.5),
         ], totalDurationSec: 0.20)
-        let a = try #require(SoundSynth.render(spec: unswept)?.floatChannelData?[0])
-        let b = try #require(SoundSynth.render(spec: swept)?.floatChannelData?[0])
+        // Bind the buffers to locals first — `floatChannelData?[0]` hands back
+        // a raw pointer into the buffer's backing store, so the AVAudioPCMBuffer
+        // must outlive the pointer reads or `a`/`b` dangle (use-after-free).
+        let bufA = try #require(SoundSynth.render(spec: unswept))
+        let bufB = try #require(SoundSynth.render(spec: swept))
+        let a = try #require(bufA.floatChannelData?[0])
+        let b = try #require(bufB.floatChannelData?[0])
         // Sample at a handful of phase-sensitive points across the buffer.
         let length = Int(0.20 * SoundSynth.sampleRate)
         for i in stride(from: 0, to: length, by: 441) {

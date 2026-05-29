@@ -13,7 +13,6 @@ final class HomeViewModel {
     private(set) var warmCount: Int = 0
     private(set) var todaysLog: [LoggedConversation] = []
     private(set) var streaks: StreakInfo = .zero
-    private(set) var followUpSuggestions: [Person] = []
     private(set) var isLoading: Bool = false
     /// Flipped true once the first successful refresh lands. Drives the
     /// stale-while-revalidate seam in the view: while false we render the
@@ -79,16 +78,14 @@ final class HomeViewModel {
             let (start, end) = Self.todayWindow()
             let streakSince = Calendar.current.date(byAdding: .day, value: -90, to: start) ?? start
             // Lazy time-based graduation: anyone who is still cold but had
-            // their last log before today gets flipped to warm now. We can
-            // run it in parallel with the conversation/activity queries —
-            // those read snapshot fields on the rows themselves — but the
-            // follow-up suggestions filter on current Person.status, so they
-            // wait for graduation to settle.
+            // their last log before today gets flipped to warm now. Runs in
+            // parallel with the conversation/activity queries — those read
+            // snapshot fields on the rows themselves and don't depend on
+            // current Person.status.
             async let graduateTask: () = repo.graduatePastDuePeople(beforeLog: start)
             async let logResult = repo.conversations(start: start, end: end)
             async let activityResult = repo.recentConversationActivity(since: streakSince)
             try await graduateTask
-            let suggestions = try await repo.followUpSuggestions(thresholdDays: 7, limit: 3)
             let log = try await logResult
             let activity = try await activityResult
 
@@ -104,7 +101,6 @@ final class HomeViewModel {
             self.coldCount = Self.uniquePeople(in: log, cold: true)
             self.warmCount = Self.uniquePeople(in: log, cold: false)
             self.streaks = StreakInfo.compute(activity: activity)
-            self.followUpSuggestions = suggestions
             self.hasLoaded = true
 
             if wasLoaded {
