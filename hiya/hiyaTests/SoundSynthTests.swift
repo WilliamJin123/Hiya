@@ -56,4 +56,23 @@ struct SoundSynthTests {
                     "\(effect) failed to render")
         }
     }
+
+    @Test func wavData_hasRiffHeaderAndCorrectSizes() throws {
+        let buffer = try #require(SoundSynth.render(spec: SoundEffect.tab.spec))
+        let wav = try #require(SoundSynth.wavData(from: buffer))
+
+        // Sanity: 44-byte header + samples * 2 bytes (Int16).
+        let expectedSize = 44 + Int(buffer.frameLength) * 2
+        #expect(wav.count == expectedSize)
+
+        // "RIFF" / "WAVE" / "fmt " / "data" markers in the right slots.
+        #expect(wav.prefix(4) == Data("RIFF".utf8))
+        #expect(wav.subdata(in: 8..<12) == Data("WAVE".utf8))
+        #expect(wav.subdata(in: 12..<16) == Data("fmt ".utf8))
+        #expect(wav.subdata(in: 36..<40) == Data("data".utf8))
+
+        // AVAudioPlayer round-trip: if our WAV bytes parse, the player builds.
+        let player = try AVAudioPlayer(data: wav)
+        #expect(player.duration > 0)
+    }
 }

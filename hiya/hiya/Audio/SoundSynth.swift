@@ -68,4 +68,59 @@ enum SoundSynth {
         }
         return value
     }
+
+    /// Wrap a rendered Float32 buffer in 16-bit PCM WAV bytes so it can be
+    /// handed to `AVAudioPlayer(data:)` — the simpler, more reliable playback
+    /// path. 16-bit PCM (format code 1) is the most broadly-accepted WAV
+    /// shape; AVAudioPlayer is rock-solid with it.
+    static func wavData(from buffer: AVAudioPCMBuffer) -> Data? {
+        guard let floatSamples = buffer.floatChannelData?[0] else { return nil }
+        let sampleRate = UInt32(buffer.format.sampleRate)
+        let channels = UInt16(buffer.format.channelCount)
+        let bitsPerSample: UInt16 = 16
+        let bytesPerSample = Int(bitsPerSample / 8)
+        let frameCount = Int(buffer.frameLength)
+        let dataSize = UInt32(frameCount * Int(channels) * bytesPerSample)
+
+        // Float [-1, 1] → Int16 little-endian.
+        var pcm = Data(capacity: Int(dataSize))
+        for i in 0..<frameCount {
+            let clamped = max(-1.0, min(1.0, floatSamples[i]))
+            let int16 = Int16(clamped * Float(Int16.max))
+            var le = int16.littleEndian
+            Swift.withUnsafeBytes(of: &le) { pcm.append(contentsOf: $0) }
+        }
+
+        // Standard RIFF/WAVE header — see http://soundfile.sapp.org/doc/WaveFormat/
+        var header = Data()
+        header.append(Data("RIFF".utf8))
+        header.appendUInt32LE(36 + dataSize)
+        header.append(Data("WAVE".utf8))
+        header.append(Data("fmt ".utf8))
+        header.appendUInt32LE(16)                              // fmt subchunk size
+        header.appendUInt16LE(1)                               // 1 == PCM
+        header.appendUInt16LE(channels)
+        header.appendUInt32LE(sampleRate)
+        header.appendUInt32LE(sampleRate * UInt32(channels) * UInt32(bytesPerSample)) // byte rate
+        header.appendUInt16LE(channels * UInt16(bytesPerSample))                       // block align
+        header.appendUInt16LE(bitsPerSample)
+        header.append(Data("data".utf8))
+        header.appendUInt32LE(dataSize)
+
+        return header + pcm
+    }
+}
+
+private extension Data {
+    // `Swift.withUnsafeBytes(of:_:)` because the unqualified name binds to
+    // `Data`'s own `withUnsafeBytes` instance method when called from a
+    // `Data` extension.
+    mutating func appendUInt16LE(_ value: UInt16) {
+        var v = value.littleEndian
+        Swift.withUnsafeBytes(of: &v) { append(contentsOf: $0) }
+    }
+    mutating func appendUInt32LE(_ value: UInt32) {
+        var v = value.littleEndian
+        Swift.withUnsafeBytes(of: &v) { append(contentsOf: $0) }
+    }
 }
