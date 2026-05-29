@@ -4,10 +4,11 @@ import Foundation
 /// `SoundSynth` renders to a PCM buffer once at launch — `SoundEngine` plays
 /// the cached buffer on demand, so taps stay cheap.
 ///
-/// **Aesthetic**: soft sine chords with slow attacks and long exponential
-/// tails. Almost no FM (the previous bell-FM voiced too "game-y"); the chord
-/// stack supplies richness instead. Lower fundamentals (C4–A4 register) for
-/// warmth. Intervals stay major / perfect for good vibes.
+/// **Aesthetic**: tonal but not obviously musical. Frequencies are picked off
+/// the equal-tempered grid (250 Hz instead of C4's 261.63) and upper voices
+/// sit at non-standard ratios (≈1.47×, ≈1.18×) so the ear hears "pitched
+/// sound design" rather than "I recognize that chord". Pure sine, slow
+/// attacks (20–80 ms), long exponential tails for the elegant side.
 enum SoundEffect: String, Sendable, CaseIterable {
     case saveSuccess
     case saveFailure
@@ -74,88 +75,82 @@ extension SoundEffect {
     var spec: SoundSpec {
         switch self {
         case .saveSuccess:
-            // C4 + E4 + G4 — major triad, soft bloom + long tail. "Settled."
+            // 250 + 378 — fundamental + shadow at ≈1.51× (off perfect fifth).
+            // Tonal pair, not a recognizable chord.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.80, frequencyHz: 261.63,   // C4
-                             attackSec: 0.025, decaySec: 0.55, amplitude: 0.16,
-                             fmIndex: 0.1, fmRatio: 3),
-                    ToneSpec(startSec: 0, durationSec: 0.80, frequencyHz: 329.63,   // E4
-                             attackSec: 0.025, decaySec: 0.55, amplitude: 0.14,
-                             fmIndex: 0.1, fmRatio: 3),
-                    ToneSpec(startSec: 0, durationSec: 0.90, frequencyHz: 392.00,   // G4
-                             attackSec: 0.025, decaySec: 0.60, amplitude: 0.13,
-                             fmIndex: 0.1, fmRatio: 3),
+                    ToneSpec(startSec: 0, durationSec: 0.85, frequencyHz: 250.0,
+                             attackSec: 0.030, decaySec: 0.55, amplitude: 0.18,
+                             fmIndex: 0.0, fmRatio: 2),
+                    ToneSpec(startSec: 0, durationSec: 0.90, frequencyHz: 378.0,
+                             attackSec: 0.030, decaySec: 0.55, amplitude: 0.13,
+                             fmIndex: 0.0, fmRatio: 2),
                 ],
                 totalDurationSec: 1.20
             )
         case .saveFailure:
-            // A3 + C4 — low minor third. Reads as "didn't work" without alarm.
+            // 200 + 236 — narrow interval (≈1.18×), neutral rather than alarmed.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.70, frequencyHz: 220.00,   // A3
-                             attackSec: 0.030, decaySec: 0.50, amplitude: 0.18,
+                    ToneSpec(startSec: 0, durationSec: 0.75, frequencyHz: 200.0,
+                             attackSec: 0.035, decaySec: 0.50, amplitude: 0.18,
                              fmIndex: 0.0, fmRatio: 2),
-                    ToneSpec(startSec: 0, durationSec: 0.70, frequencyHz: 261.63,   // C4
-                             attackSec: 0.030, decaySec: 0.50, amplitude: 0.16,
+                    ToneSpec(startSec: 0, durationSec: 0.75, frequencyHz: 236.0,
+                             attackSec: 0.035, decaySec: 0.50, amplitude: 0.15,
                              fmIndex: 0.0, fmRatio: 2),
                 ],
                 totalDurationSec: 1.00
             )
         case .achievement:
-            // Slow blooming arpeggio — C4 → E4 → G4 → C5. Each note overlaps
-            // the previous, so the ending is a full C-major chord with the
-            // octave. Long elegant tail; deliberately not a stinger.
+            // Three voices, staggered entrance, slightly detuned octave-ish
+            // span (220 → 331 → 444). Reads as a swell, not an arpeggio.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0.00, durationSec: 1.00, frequencyHz: 261.63,
-                             attackSec: 0.025, decaySec: 0.55, amplitude: 0.13,
-                             fmIndex: 0.1, fmRatio: 3),
-                    ToneSpec(startSec: 0.15, durationSec: 0.95, frequencyHz: 329.63,
-                             attackSec: 0.025, decaySec: 0.55, amplitude: 0.13,
-                             fmIndex: 0.1, fmRatio: 3),
-                    ToneSpec(startSec: 0.30, durationSec: 0.90, frequencyHz: 392.00,
-                             attackSec: 0.025, decaySec: 0.55, amplitude: 0.13,
-                             fmIndex: 0.1, fmRatio: 3),
-                    ToneSpec(startSec: 0.45, durationSec: 0.95, frequencyHz: 523.25,
-                             attackSec: 0.030, decaySec: 0.65, amplitude: 0.16,
-                             fmIndex: 0.1, fmRatio: 3),
+                    ToneSpec(startSec: 0.00, durationSec: 1.30, frequencyHz: 220.0,
+                             attackSec: 0.080, decaySec: 0.60, amplitude: 0.14,
+                             fmIndex: 0.0, fmRatio: 2),
+                    ToneSpec(startSec: 0.10, durationSec: 1.20, frequencyHz: 331.0,
+                             attackSec: 0.080, decaySec: 0.60, amplitude: 0.13,
+                             fmIndex: 0.0, fmRatio: 2),
+                    ToneSpec(startSec: 0.22, durationSec: 1.20, frequencyHz: 444.0,
+                             attackSec: 0.090, decaySec: 0.65, amplitude: 0.12,
+                             fmIndex: 0.0, fmRatio: 2),
                 ],
-                totalDurationSec: 1.50
+                totalDurationSec: 1.80
             )
         case .modeSwitch:
-            // Single warm D4 — felt-mallet-on-bell vibe. Pure sine, no FM.
+            // Single 290 Hz tone (slightly off D4). Pure sine, brief.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.35, frequencyHz: 293.66,   // D4
-                             attackSec: 0.018, decaySec: 0.22, amplitude: 0.14,
+                    ToneSpec(startSec: 0, durationSec: 0.40, frequencyHz: 290.0,
+                             attackSec: 0.022, decaySec: 0.25, amplitude: 0.14,
                              fmIndex: 0.0, fmRatio: 2),
                 ],
-                totalDurationSec: 0.45
+                totalDurationSec: 0.50
             )
         case .tab:
-            // Background-noise level. F4 dot, brief and unobtrusive.
+            // 340 Hz dot — quietest of all. Slightly different from modeSwitch
+            // so the two don't blur together.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.20, frequencyHz: 349.23,   // F4
-                             attackSec: 0.012, decaySec: 0.15, amplitude: 0.09,
+                    ToneSpec(startSec: 0, durationSec: 0.22, frequencyHz: 340.0,
+                             attackSec: 0.012, decaySec: 0.16, amplitude: 0.09,
                              fmIndex: 0.0, fmRatio: 2),
                 ],
-                totalDurationSec: 0.28
+                totalDurationSec: 0.30
             )
         case .sheetOpen:
-            // E4 + A4 — perfect fourth, gentle bloom with a slight upward feel.
-            // Long-ish attack (40 ms) so it never reads as a click.
+            // 320 + 470 — ≈1.47× ratio, tonal but neither a fourth nor fifth.
             return SoundSpec(
                 tones: [
-                    ToneSpec(startSec: 0, durationSec: 0.55, frequencyHz: 329.63,   // E4
-                             attackSec: 0.040, decaySec: 0.30, amplitude: 0.13,
+                    ToneSpec(startSec: 0, durationSec: 0.60, frequencyHz: 320.0,
+                             attackSec: 0.045, decaySec: 0.30, amplitude: 0.13,
                              fmIndex: 0.0, fmRatio: 2),
-                    ToneSpec(startSec: 0, durationSec: 0.55, frequencyHz: 440.00,   // A4
-                             attackSec: 0.040, decaySec: 0.30, amplitude: 0.12,
+                    ToneSpec(startSec: 0, durationSec: 0.60, frequencyHz: 470.0,
+                             attackSec: 0.045, decaySec: 0.30, amplitude: 0.12,
                              fmIndex: 0.0, fmRatio: 2),
                 ],
-                totalDurationSec: 0.75
+                totalDurationSec: 0.80
             )
         }
     }

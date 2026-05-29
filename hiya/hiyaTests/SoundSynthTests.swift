@@ -57,6 +57,27 @@ struct SoundSynthTests {
         }
     }
 
+    @Test func renderAmbience_loopsCleanly() throws {
+        // The drone has to start AND end at near-zero so the loop seam
+        // doesn't click. With 60/90/120 Hz voices over 5 s, every voice
+        // completes an integer number of cycles, so both boundary samples
+        // should land on the zero crossings.
+        let buffer = try #require(SoundSynth.renderAmbience(durationSec: 5.0))
+        let samples = try #require(buffer.floatChannelData?[0])
+        let last = Int(buffer.frameLength) - 1
+
+        #expect(abs(samples[0]) < 0.01,
+                "first sample should be ~0, was \(samples[0])")
+        #expect(abs(samples[last]) < 0.05,
+                "last sample should be ~0, was \(samples[last])")
+
+        // And the bed should actually be producing signal in the middle —
+        // catches a degenerate spec that goes silent.
+        let midPeak = (0..<Int(buffer.frameLength))
+            .lazy.map { abs(samples[$0]) }.max() ?? 0
+        #expect(midPeak > 0.05)
+    }
+
     @Test func wavData_hasRiffHeaderAndCorrectSizes() throws {
         let buffer = try #require(SoundSynth.render(spec: SoundEffect.tab.spec))
         let wav = try #require(SoundSynth.wavData(from: buffer))

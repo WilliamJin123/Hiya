@@ -101,11 +101,16 @@ struct SkeletonView: View {
 /// Used wherever a heavier skeleton would be overkill (auth, account save,
 /// the AppGate splash). Picks up the tier and shifts the gradient + cadence
 /// at `.extended`: amber-leading sweep and a calmer rotation.
+///
+/// Uses the `.animation(_:value:)` modifier (instead of `withAnimation` inside
+/// `.onAppear`) because the latter has an iOS 17+ quirk where the spinner
+/// silently fails to start when the view appears during its first layout
+/// pass — exactly what happens on the cold-start `AppGateView` splash.
 struct LoadingOrb: View {
     var size: CGFloat = 32
     var lineWidth: CGFloat = 3.5
     @Environment(\.loadingTier) private var tier
-    @State private var rotation: Double = 0
+    @State private var animating = false
 
     var body: some View {
         ZStack {
@@ -117,25 +122,24 @@ struct LoadingOrb: View {
                     tier == .extended ? Theme.accentGradientReversed : Theme.accentGradient,
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
-                .rotationEffect(.degrees(rotation))
+                .rotationEffect(.degrees(animating ? 360 : 0))
+                .animation(
+                    .linear(duration: tier == .extended ? 1.8 : 1.1)
+                        .repeatForever(autoreverses: false),
+                    value: animating
+                )
         }
         .frame(width: size, height: size)
         .shadow(
             color: (tier == .extended ? Theme.accentAmber : Theme.accentLavender).opacity(0.35),
             radius: size * 0.25
         )
-        .onAppear { startSpinning() }
-        .onChange(of: tier) { _, _ in startSpinning() }
-    }
-
-    private func startSpinning() {
-        // Restart from 0 so the new cadence takes effect cleanly when the tier
-        // changes (otherwise SwiftUI would keep the prior animation's velocity).
-        rotation = 0
-        let period: Double = tier == .extended ? 1.8 : 1.1
-        withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
-            rotation = 360
-        }
+        .onAppear { animating = true }
+        // Tier transitions (e.g. inside DelayedLoadingModifier hitting
+        // .extended) force a fresh view identity so `onAppear` runs again
+        // with the new animation period — otherwise the running spin would
+        // keep its prior cadence.
+        .id(tier)
     }
 }
 

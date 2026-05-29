@@ -21,6 +21,10 @@ struct AppGateView: View {
                     LoadingOrb(size: 44, lineWidth: 4)
                 }
                 .transition(.opacity)
+                // Soft ambient bed fades in under the splash and fades out
+                // the moment the session resolves. No-op if sounds are off.
+                .onAppear { SoundEngine.shared.startAmbience() }
+                .onDisappear { SoundEngine.shared.stopAmbience() }
             case .app:
                 RootView(repo: repo)
                     .environment(session)

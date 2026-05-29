@@ -69,6 +69,43 @@ enum SoundSynth {
         return value
     }
 
+    /// Five-second seamless drone for the loading-screen ambient bed. Three
+    /// sine voices at 60 / 90 / 120 Hz — every voice completes an integer
+    /// number of cycles inside the duration (60×5 = 300, 90×5 = 450, 120×5
+    /// = 600), so the loop seam lands at zero crossings for all of them and
+    /// there's no click on the wraparound. Flat envelope (no attack/decay)
+    /// for the same reason — any envelope shape would break the seam.
+    static func renderAmbience(durationSec: Double = 5.0) -> AVAudioPCMBuffer? {
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else {
+            return nil
+        }
+        let frameCount = AVAudioFrameCount(durationSec * sampleRate)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            return nil
+        }
+        buffer.frameLength = frameCount
+        guard let samples = buffer.floatChannelData?[0] else { return nil }
+
+        // (frequency Hz, amplitude). Low register; volume is dialed in further
+        // at the player level so the bed sits well under any action sound.
+        let voices: [(Double, Double)] = [
+            (60.0,  0.10),
+            (90.0,  0.08),
+            (120.0, 0.07),
+        ]
+
+        let totalFrames = Int(frameCount)
+        for i in 0..<totalFrames {
+            let t = Double(i) / sampleRate
+            var mix: Double = 0
+            for (freq, amp) in voices {
+                mix += sin(2 * .pi * freq * t) * amp
+            }
+            samples[i] = Float(tanh(mix))
+        }
+        return buffer
+    }
+
     /// Wrap a rendered Float32 buffer in 16-bit PCM WAV bytes so it can be
     /// handed to `AVAudioPlayer(data:)` — the simpler, more reliable playback
     /// path. 16-bit PCM (format code 1) is the most broadly-accepted WAV

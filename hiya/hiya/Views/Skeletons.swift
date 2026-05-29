@@ -155,9 +155,15 @@ struct HistorySkeleton: View {
 // MARK: - Insights
 
 /// Two stat blocks + a chart band + a row of lesson cards.
+/// Insights aggregates a year of data, so it can run noticeably slower than
+/// the other tabs — a centered orb above the shimmer makes "still working"
+/// obvious instead of relying on the shimmer alone.
 struct InsightsSkeleton: View {
     var body: some View {
         VStack(spacing: Theme.Spacing.lg) {
+            LoadingOrb(size: 40, lineWidth: 3.5)
+                .padding(.top, Theme.Spacing.xl)
+                .padding(.bottom, Theme.Spacing.sm)
             HStack(spacing: Theme.Spacing.md) {
                 statCard
                 statCard
