@@ -16,6 +16,9 @@ struct LogSheetView: View {
     /// knows the name they're typing; the toggle exposes the full list (and
     /// any search query auto-expands it regardless).
     @AppStorage("hiya.logsheet.people.expanded") private var peopleListExpanded = false
+    /// Mirrors the Settings toggle. When on (and this is a cold approach), the
+    /// "pure cold" control appears so the log can count toward the daily quota.
+    @AppStorage(HardMode.defaultsKey) private var hardMode = false
     @Environment(\.dismiss) private var dismiss
 
     init(
@@ -44,6 +47,9 @@ struct LogSheetView: View {
                         personSection
                         if vm.isQuickApproach {
                             quickApproachSection
+                        }
+                        if hardMode && vm.canBePureCold {
+                            pureColdSection
                         }
                         whenSection
                         whereSection
@@ -294,6 +300,30 @@ struct LogSheetView: View {
             .padding(12)
             .background(Theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        }
+    }
+
+    private var pureColdSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("HARD MODE")
+            Toggle(isOn: $vm.wasPureCold) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Pure cold")
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    Text("A stranger in a non-social setting — on the street, no event or pretext. You brought the energy.")
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(Theme.pureColdAccent)
+            .padding(Theme.Spacing.md)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            .onChange(of: vm.wasPureCold) { _, on in
+                if on { Haptics.selection() }
+            }
         }
     }
 

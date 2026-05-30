@@ -11,6 +11,10 @@ final class HomeViewModel {
     private(set) var coldCount: Int = 0
     /// Unique people caught up with (warm) today.
     private(set) var warmCount: Int = 0
+    /// Unique people approached *pure* cold today (a cold approach flagged as a
+    /// non-social, no-pretext initiation). Always a subset of `coldCount`;
+    /// surfaced as the inner Approaches ring when hard mode is on.
+    private(set) var pureColdCount: Int = 0
     private(set) var todaysLog: [LoggedConversation] = []
     private(set) var streaks: StreakInfo = .zero
     private(set) var isLoading: Bool = false
@@ -46,6 +50,16 @@ final class HomeViewModel {
 
     func isGoalMet(for mode: PersonStatus) -> Bool {
         count(for: mode) >= goal(for: mode)
+    }
+
+    /// Hard mode's pure-cold target, clamped so it can never exceed the cold
+    /// goal — requiring more pure approaches than total approaches is impossible.
+    var pureColdGoal: Int { min(HardMode.pureColdQuota, goal(for: .cold)) }
+
+    var pureColdProgress: Double {
+        let g = pureColdGoal
+        guard g > 0 else { return 0 }
+        return min(1.0, Double(pureColdCount) / Double(g))
     }
 
     func ringState(for mode: PersonStatus) -> RingState {
@@ -100,6 +114,7 @@ final class HomeViewModel {
             self.todaysLog = log
             self.coldCount = Self.uniquePeople(in: log, cold: true)
             self.warmCount = Self.uniquePeople(in: log, cold: false)
+            self.pureColdCount = Self.uniquePeopleCold(in: log)
             self.streaks = StreakInfo.compute(activity: activity)
             self.hasLoaded = true
 
@@ -127,6 +142,13 @@ final class HomeViewModel {
         Set(log.filter { $0.wasColdAtTime == cold }.map(\.personId)).count
     }
 
+    /// Unique people whose cold approach today was flagged *pure* cold. Only the
+    /// `wasColdAtTime` row ever carries the pure flag, so a stray tag on a
+    /// non-cold meeting is correctly ignored — this stays a subset of the cold count.
+    static func uniquePeopleCold(in log: [LoggedConversation]) -> Int {
+        Set(log.filter { $0.wasColdAtTime && $0.wasPureCold }.map(\.personId)).count
+    }
+
     static func todayWindow(now: Date = .now, calendar: Calendar = .current) -> (start: Date, end: Date) {
         let start = calendar.startOfDay(for: now)
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? now
@@ -138,4 +160,30 @@ enum RingState: Equatable, Sendable {
     case inProgress(count: Int, goal: Int, progress: Double)
     case atGoal(goal: Int)
     case overload(count: Int, goal: Int, extra: Int)
+}
+
+/// Experimental "hard mode" knobs. The toggle is a per-device `@AppStorage`
+/// flag — it's an experiment, not synced profile state — and the quota is a
+/// fixed floor for now: small and easy to bump once the mechanic proves itself.
+enum HardMode {
+    /// `@AppStorage` key shared by Settings (writes it), Home (draws the inner
+    /// ring), and the log sheet (shows the pure-cold toggle). Read live, so
+    /// flipping it takes effect immediately.
+    static let defaultsKey = "hiya.experimental.hardMode"
+    /// `@AppStorage` key for the configurable pure-cold target (per-device).
+    static let quotaDefaultsKey = "hiya.experimental.pureColdQuota"
+    /// Fallback target before the user has picked one.
+    static let defaultQuota = 3
+    /// Range offered by the Settings stepper.
+    static let quotaRange = 1...10
+
+    /// The user's configured pure-cold target — the minimum approaches a day
+    /// that must be *pure* cold (a stranger in a non-social setting, initiated
+    /// with no pretext). Read live from defaults so a change in Settings applies
+    /// immediately; `UserDefaults.integer` returns 0 when unset, so we fall back
+    /// to `defaultQuota` then.
+    static var pureColdQuota: Int {
+        let v = UserDefaults.standard.integer(forKey: quotaDefaultsKey)
+        return v > 0 ? v : defaultQuota
+    }
 }

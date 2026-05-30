@@ -14,6 +14,11 @@ struct SettingsView: View {
     /// Bound to the same UserDefaults key SoundEngine reads — flipping it
     /// takes effect on the very next `play()` call, no engine restart needed.
     @AppStorage(SoundEngine.enabledDefaultsKey) private var soundsEnabled = true
+    /// Per-device experimental flag. Home reads it to draw the pure-cold inner
+    /// ring; the log sheet reads it to show the "pure cold" toggle.
+    @AppStorage(HardMode.defaultsKey) private var hardMode = false
+    /// Configurable pure-cold target. HomeViewModel reads the same key live.
+    @AppStorage(HardMode.quotaDefaultsKey) private var pureColdQuota = HardMode.defaultQuota
 
     init(repo: HiyaRepository) {
         self.repo = repo
@@ -55,6 +60,8 @@ struct SettingsView: View {
                         remindersSection
 
                         soundsSection
+
+                        experimentalSection
 
                         saveButton
                     }
@@ -130,6 +137,64 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
         .disabled(session.isWorking)
+    }
+
+    @ViewBuilder
+    private var experimentalSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("EXPERIMENTAL")
+                .font(Theme.FontScale.bodyHeading())
+                .tracking(1.2)
+                .foregroundColor(Theme.textSecondary)
+
+            Toggle(isOn: $hardMode) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Hard mode")
+                        .font(Theme.FontScale.body())
+                        .foregroundColor(Theme.textPrimary)
+                    Text("Asks you to make at least \(HardMode.pureColdQuota) pure cold approaches a day — strangers in non-social settings, where you start the conversation with no pretext. Shown as an inner ring on Approaches, with a pure-cold toggle when you log one.")
+                        .font(Theme.FontScale.secondary())
+                        .foregroundColor(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(Theme.pureColdAccent)
+            .padding(Theme.Spacing.md)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            .onChange(of: hardMode) { _, on in
+                if on { Haptics.success() } else { Haptics.selection() }
+            }
+
+            if hardMode {
+                pureColdQuotaRow
+            }
+        }
+    }
+
+    private var pureColdQuotaRow: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Pure cold target")
+                    .font(Theme.FontScale.body())
+                    .foregroundColor(Theme.textPrimary)
+                Text("Approaches a day that must be pure")
+                    .font(Theme.FontScale.secondary())
+                    .foregroundColor(Theme.textSecondary)
+            }
+            Spacer()
+            Text("\(pureColdQuota)")
+                .font(.custom(Theme.FontName.counterMono, size: 22).weight(.semibold))
+                .foregroundColor(Theme.pureColdAccent)
+                .frame(minWidth: 32, alignment: .trailing)
+                .contentTransition(.numericText())
+            Stepper("", value: $pureColdQuota, in: HardMode.quotaRange)
+                .labelsHidden()
+                .fixedSize()
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
     }
 
     @ViewBuilder

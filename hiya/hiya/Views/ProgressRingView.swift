@@ -5,6 +5,18 @@ struct ProgressRingView: View {
     var gradient: LinearGradient = Theme.accentGradient
     var accent: Color = Theme.accentAmber
 
+    /// Optional second, smaller ring nested inside the main one — used by the
+    /// Approaches orb in hard mode to show pure-cold progress as a tougher inner
+    /// tier. `nil` (the default) draws a single ring, exactly as before.
+    var innerRing: InnerRing? = nil
+
+    struct InnerRing {
+        var progress: Double
+        var count: Int
+        var goal: Int
+        var accent: Color
+    }
+
     @State private var burstToken = 0
     @State private var wasAtGoal = false
 
@@ -17,6 +29,18 @@ struct ProgressRingView: View {
                 .stroke(gradient, style: StrokeStyle(lineWidth: 18, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.easeOut(duration: 0.4), value: fillAmount)
+
+            if let inner = innerRing {
+                Circle()
+                    .stroke(Theme.ringTrack, lineWidth: 8)
+                    .padding(26)
+                Circle()
+                    .trim(from: 0, to: inner.progress)
+                    .stroke(inner.accent, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .padding(26)
+                    .animation(.easeOut(duration: 0.4), value: inner.progress)
+            }
 
             centerContent
                 .id(state.kind)
@@ -65,6 +89,25 @@ struct ProgressRingView: View {
 
     @ViewBuilder
     private var centerContent: some View {
+        VStack(spacing: 4) {
+            mainCenterContent
+            if let inner = innerRing {
+                HStack(spacing: 3) {
+                    Image(systemName: "snowflake")
+                        .font(.system(size: 9, weight: .bold))
+                    Text("\(inner.count)/\(inner.goal) pure")
+                        .font(Theme.FontScale.micro())
+                        .tracking(0.5)
+                        .contentTransition(.numericText())
+                }
+                .foregroundColor(inner.accent)
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mainCenterContent: some View {
         switch state {
         case .inProgress(let count, let goal, _):
             VStack(spacing: 4) {
@@ -168,4 +211,17 @@ private extension RingState {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.bgGradient)
         .preferredColorScheme(.dark)
+}
+
+#Preview("Hard mode") {
+    ProgressRingView(
+        state: .inProgress(count: 7, goal: 10, progress: 0.7),
+        gradient: Theme.gradient(for: .cold),
+        accent: Theme.coldAccent,
+        innerRing: .init(progress: 1.0 / 3.0, count: 1, goal: 3, accent: Theme.pureColdAccent)
+    )
+    .padding(40)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Theme.bgGradient)
+    .preferredColorScheme(.dark)
 }

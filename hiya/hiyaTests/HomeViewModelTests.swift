@@ -256,4 +256,63 @@ struct HomeViewModelTests {
         #expect(vm.streaks.cold == 1)
         #expect(vm.streaks.warm == 1)
     }
+
+    // MARK: - Hard mode / pure-cold
+
+    @Test func pureColdCount_countsOnlyFlaggedColdApproaches() async throws {
+        let repo = MockHiyaRepository()
+        let pure = try await repo.createPerson(name: "Pure")
+        try await repo.logConversation(personId: pure.id, valence: nil, note: nil, improvementNote: nil, wasPureCold: true)
+        let plain = try await repo.createPerson(name: "Plain")
+        try await repo.logConversation(personId: plain.id, valence: nil, note: nil, improvementNote: nil) // wasPureCold defaults false
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(vm.count(for: .cold) == 2)
+        #expect(vm.pureColdCount == 1, "only the flagged approach counts as pure")
+    }
+
+    @Test func pureColdCount_ignoresWarmLogs() async throws {
+        let repo = MockHiyaRepository()
+        // A warm catch-up, even if flagged pure, is not a cold approach and must
+        // not count toward the pure-cold tally — pure-cold is a subset of cold.
+        let warm = try await repo.createPerson(name: "Warm", status: .warm)
+        try await repo.logConversation(personId: warm.id, valence: nil, note: nil, improvementNote: nil, wasPureCold: true)
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(vm.count(for: .warm) == 1)
+        #expect(vm.pureColdCount == 0)
+    }
+
+    @Test func pureColdGoal_clampsToColdGoal() async throws {
+        // Default cold goal (10) → the fixed quota.
+        let repo = MockHiyaRepository()
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+        #expect(vm.pureColdGoal == HardMode.pureColdQuota)
+
+        // A cold goal below the quota clamps it — you can't be asked for more
+        // pure approaches than total approaches.
+        let smallRepo = MockHiyaRepository(profile: Profile(
+            id: UUID(), displayName: nil, coldDailyGoal: 2,
+            streakMode: .hard, timezone: TimeZone.current.identifier, createdAt: .now
+        ))
+        let smallVM = HomeViewModel(repo: smallRepo)
+        await smallVM.refresh()
+        #expect(smallVM.pureColdGoal == 2)
+    }
+
+    @Test func pureColdProgress_isFractionOfQuota() async throws {
+        let repo = MockHiyaRepository()
+        let p = try await repo.createPerson(name: "Pure")
+        try await repo.logConversation(personId: p.id, valence: nil, note: nil, improvementNote: nil, wasPureCold: true)
+
+        let vm = HomeViewModel(repo: repo)
+        await vm.refresh()
+
+        #expect(abs(vm.pureColdProgress - (1.0 / Double(HardMode.pureColdQuota))) < 0.001)
+    }
 }

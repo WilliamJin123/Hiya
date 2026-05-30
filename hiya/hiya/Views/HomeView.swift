@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var showingSettings = false
     @State private var toast: ToastItem?
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
+    @AppStorage(HardMode.defaultsKey) private var hardMode = false
     @Environment(NotificationManager.self) private var notifications
     @Environment(\.scenePhase) private var scenePhase
 
@@ -154,7 +155,14 @@ struct HomeView: View {
                 ProgressRingView(
                     state: vm.ringState(for: pageMode),
                     gradient: Theme.gradient(for: pageMode),
-                    accent: Theme.accent(for: pageMode)
+                    accent: Theme.accent(for: pageMode),
+                    innerRing: (pageMode == .cold && hardMode)
+                        ? .init(
+                            progress: vm.pureColdProgress,
+                            count: vm.pureColdCount,
+                            goal: vm.pureColdGoal,
+                            accent: Theme.pureColdAccent)
+                        : nil
                 )
                 streakLine(for: pageMode)
                 logButton(for: pageMode)

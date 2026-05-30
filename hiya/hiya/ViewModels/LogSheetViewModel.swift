@@ -21,6 +21,10 @@ final class LogSheetViewModel {
     /// In Approaches mode, whether the user is logging a nameless "quick approach"
     /// rather than a named one. Toggled by the "Got a name / Quick" control.
     var isQuickMode = false
+    /// Hard mode only: whether this cold approach was *pure* cold — a stranger
+    /// in a non-social setting, initiated with no pretext. Gated in the UI by
+    /// `canBePureCold`; forced false for warm logs at save time.
+    var wasPureCold = false
     private(set) var editing: LoggedConversation?
 
     /// The track this log is created in (from the Home mode): `.cold` = a cold
@@ -75,6 +79,13 @@ final class LogSheetViewModel {
         return !targets.isEmpty || !trimmedSearch.isEmpty
     }
 
+    /// Whether the "pure cold" toggle applies to this log — only cold approaches
+    /// can be pure. For a new log that's the cold origin; when editing, it's
+    /// whether the entry was the cold meeting.
+    var canBePureCold: Bool {
+        editing == nil ? origin == .cold : (editing?.wasColdAtTime ?? false)
+    }
+
     init(
         repo: HiyaRepository,
         editing: LoggedConversation? = nil,
@@ -92,6 +103,7 @@ final class LogSheetViewModel {
             improvementNote = editing.improvementNote ?? ""
             location = editing.location ?? ""
             occurredAt = editing.occurredAt
+            wasPureCold = editing.wasPureCold
         } else if let preselected = preselectedPerson {
             targets = [.existing(preselected)]
         }
@@ -136,6 +148,8 @@ final class LogSheetViewModel {
         errorMessage = nil
         defer { isSaving = false }
         do {
+            // Only cold approaches can be pure; never tag a warm catch-up.
+            let pure = wasPureCold && canBePureCold
             let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
             let trimmedImprovement = improvementNote.trimmingCharacters(in: .whitespacesAndNewlines)
             let noteToSend = trimmedNote.isEmpty ? nil : trimmedNote
@@ -150,7 +164,8 @@ final class LogSheetViewModel {
                     valence: valence,
                     note: noteToSend,
                     improvementNote: improvementToSend,
-                    location: locationToSend
+                    location: locationToSend,
+                    wasPureCold: pure
                 )
             } else if isQuickApproach {
                 // Nameless quick approaches that still count toward the cold tally.
@@ -159,7 +174,8 @@ final class LogSheetViewModel {
                     occurredAt: occurredAt,
                     valence: valence,
                     note: noteToSend,
-                    location: locationToSend
+                    location: locationToSend,
+                    wasPureCold: pure
                 )
                 return true
             } else {
@@ -205,7 +221,8 @@ final class LogSheetViewModel {
                         valence: valence,
                         note: noteToSend,
                         improvementNote: improvementToSend,
-                        location: locationToSend
+                        location: locationToSend,
+                        wasPureCold: pure
                     )
                 }
             }
