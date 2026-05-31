@@ -146,7 +146,16 @@ final class HomeViewModel {
                 }
             }
         } catch {
-            errorMessage = error.localizedDescription
+            // Stale-while-revalidate: refresh is a *background* re-fetch, so a
+            // transient failure must NOT surface a modal. Setting errorMessage
+            // here armed HomeView's `.alert`, and the post-save refresh fires
+            // right as the log sheet is dismissing — presenting a UIKit alert
+            // mid-dismissal corrupts SwiftUI's render state and crashes in
+            // Text.resolve (swift_unknownObjectRetain at 0x1). BOTH Address and
+            // Thread Sanitizer come back clean, which rules out a use-after-free
+            // and a data race and pins it on the presentation lifecycle. Keep
+            // the last-good data on screen; the next refresh recovers. Genuine
+            // *save* failures still surface via the log sheet's onSaved path.
         }
     }
 

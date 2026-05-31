@@ -67,10 +67,6 @@ struct LogSheetView: View {
                     }
                     .padding(Theme.Spacing.md)
                 }
-                WorkingOverlay(
-                    isWorking: vm.isSaving || vm.isDeleting,
-                    hint: vm.isDeleting ? "deleting…" : "saving…"
-                )
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -446,12 +442,14 @@ struct LogSheetView: View {
 
     private var saveButton: some View {
         Button {
-            // Dismiss-first so the user never sees a frozen sheet — the save
-            // runs in the background and the parent surfaces a toast via
-            // `onSaved` once the row commits (or fails). The Task captures
-            // `vm` strongly, so the view model outlives the sheet teardown
-            // until the work finishes. Haptic fires on the *actual* result,
-            // not optimistically on tap.
+            // Save, THEN dismiss — never dismiss-first. save() mutates this
+            // sheet's @Observable VM (isSaving, errorMessage); doing that after
+            // the sheet was already torn down made SwiftUI update a freed view
+            // node → EXC_BAD_ACCESS in swift_unknownObjectRetain. Dismissing
+            // after save keeps every mutation while the sheet is still alive.
+            // No loading overlay: the save is quick and the new log appearing is
+            // feedback enough. The button greys out (isSaving) during the brief
+            // wait, then the sheet closes.
             guard vm.canSave, !vm.isSaving else { return }
             Haptics.selection()
             let vmRef = vm
@@ -465,9 +463,9 @@ struct LogSheetView: View {
                     Haptics.error()
                     SoundEngine.shared.play(.saveFailure)
                 }
+                dismiss()
                 await after(ok, ok ? nil : vmRef.errorMessage)
             }
-            dismiss()
         } label: {
             Text(saveButtonTitle)
                 .font(Theme.FontScale.body())

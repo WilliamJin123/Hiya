@@ -73,32 +73,36 @@ struct HomeView: View {
                 SoundEngine.shared.play(.achievement)
             }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load(); await syncReminders() } }) { sheet in
-                // No success toast — the new log appearing in the list is feedback
-                // enough, and the toast's transition crashed the post-save render
-                // (EXC_BAD_ACCESS in swift_unknownObjectRetain while resolving its
-                // Text). A failed save still surfaces via the "Something went wrong"
-                // alert below — a system alert, not the custom overlay that crashed.
+                // The post-save refresh runs EXACTLY ONCE, in the .sheet onDismiss
+                // above (post-commit, since save dismisses after it finishes). Doing
+                // it here too fired a SECOND copy concurrently — and refresh/load's
+                // `await repo.…` calls leave the main actor and hit the shared
+                // Supabase client in parallel, which intermittently corrupted the
+                // heap and crashed a later render (swift_unknownObjectRetain). Delete
+                // only fires it once, which is why delete never crashed. onSaved now
+                // only surfaces a failure (via the alert below); no refresh here.
                 switch sheet {
                 case .create(let p, let mode):
                     LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode) { ok, err in
-                        if ok { await vm.refresh(); await challengesVM.load(); await syncReminders() }
-                        else { vm.errorMessage = err ?? "Couldn't save" }
+                        if !ok { vm.errorMessage = err ?? "Couldn't save" }
                     }
                 case .edit(let entry):
                     LogSheetView(repo: repo, editing: entry) { ok, err in
-                        if ok { await vm.refresh(); await challengesVM.load(); await syncReminders() }
-                        else { vm.errorMessage = err ?? "Couldn't save" }
+                        if !ok { vm.errorMessage = err ?? "Couldn't save" }
                     }
                 }
             }
-            .alert("Something went wrong", isPresented: Binding(
-                get: { vm.errorMessage != nil },
-                set: { if !$0 { vm.errorMessage = nil } }
-            )) {
-                Button("OK") { vm.errorMessage = nil }
-            } message: {
-                Text(vm.errorMessage ?? "")
-            }
+            // NO modal `.alert` here. When an operation errored, `errorMessage`
+            // flipped to non-nil from inside an async callback that resumes
+            // *during* a SwiftUI render pass — SwiftUI then tried to present the
+            // alert re-entrantly (ViewRendererHost.render → preferencesDidChange
+            // → UIKitDialogBridge.showNewAlert) and crashed at 0x1 in Text
+            // resolution. This is a presentation-lifecycle crash (both Address
+            // and Thread Sanitizer are clean), and it's why the old toast crashed
+            // the same way. Errors are surfaced non-modally instead — see the
+            // inline banner in `pageContent`. The underlying errors (a flaky/
+            // expired anonymous session forcing a main-thread-hanging refresh in
+            // supabase-swift) are the real fix, tracked separately.
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await vm.refresh(); await syncReminders() }
@@ -143,6 +147,7 @@ struct HomeView: View {
     private func pageContent(for pageMode: PersonStatus) -> some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
+                if vm.errorMessage != nil { errorBanner }
                 ProgressRingView(
                     state: vm.ringState(for: pageMode),
                     gradient: Theme.gradient(for: pageMode),
@@ -167,6 +172,33 @@ struct HomeView: View {
         .delayedLoading(isLoading: vm.isLoading, hasLoaded: vm.hasLoaded) {
             ScrollView { HomeSkeleton() }
         }
+    }
+
+    /// Non-modal error surface. Renders a STATIC string, never the raw
+    /// `errorMessage` — supabase error values can carry a String whose storage
+    /// is bad, which crashes when SwiftUI bridges it to NSString
+    /// (swift_unknownObjectRetain at 0x1). `errorMessage` is used purely as a
+    /// flag. No `.transition` / `withAnimation`: a plain conditional view in the
+    /// hierarchy is a normal data-driven re-render, not a re-entrant
+    /// presentation, so it can't trip the dialog-bridge crash the alert did.
+    private var errorBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 13, weight: .semibold))
+            Text("Couldn't sync just now. Pull down to refresh.")
+                .font(Theme.FontScale.secondary())
+            Spacer()
+            Button { vm.errorMessage = nil } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+        }
+        .foregroundColor(Theme.textSecondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
     }
 
     private func streakLine(for pageMode: PersonStatus) -> some View {

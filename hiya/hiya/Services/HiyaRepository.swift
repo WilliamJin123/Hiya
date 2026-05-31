@@ -139,11 +139,24 @@ final class LiveHiyaRepository: HiyaRepository {
         self.client = client
     }
 
+    /// The signed-in user's id WITHOUT a network round-trip.
+    ///
+    /// `client.auth.user()` calls the GoTrue `/user` endpoint every time (and
+    /// refreshes an expired session inline) — that was a needless network hop
+    /// before every write and a prime main-thread-hang suspect. The user id is
+    /// stable, so the locally cached session is the right source; we only fall
+    /// back to the async `session` (restore + refresh) if there's no cached
+    /// session yet, which shouldn't happen after `ensureSignedIn`.
+    private func currentUserID() async throws -> UUID {
+        if let id = client.auth.currentSession?.user.id { return id }
+        return try await client.auth.session.user.id
+    }
+
     func ensureSignedIn() async throws -> Profile {
         if client.auth.currentSession == nil {
             try await client.auth.signInAnonymously()
         }
-        let userId = try await client.auth.user().id
+        let userId = try await currentUserID()
         let profile: Profile = try await client
             .from("profiles")
             .select()
@@ -189,7 +202,7 @@ final class LiveHiyaRepository: HiyaRepository {
     }
 
     func updateDisplayName(_ name: String) async throws -> Profile {
-        let userId = try await client.auth.user().id
+        let userId = try await currentUserID()
         struct Update: Encodable { let display_name: String }
         return try await client
             .from("profiles")
@@ -202,7 +215,7 @@ final class LiveHiyaRepository: HiyaRepository {
     }
 
     func updateGoals(coldDailyGoal: Int, warmDailyGoal: Int) async throws -> Profile {
-        let userId = try await client.auth.user().id
+        let userId = try await currentUserID()
         struct Update: Encodable {
             let cold_daily_goal: Int
             let warm_daily_goal: Int
@@ -233,7 +246,7 @@ final class LiveHiyaRepository: HiyaRepository {
         let seed = (trimmedNotes?.isEmpty == false) ? trimmedNotes : nil
         // A cold-status creation is a cold approach unless told otherwise.
         let resolvedMetCold = metCold ?? (status == .cold)
-        let userId = try await client.auth.user().id
+        let userId = try await currentUserID()
         struct Insert: Encodable {
             let owner_id: UUID
             let name: String
@@ -383,7 +396,7 @@ final class LiveHiyaRepository: HiyaRepository {
         location: String? = nil,
         wasPureCold: Bool = false
     ) async throws {
-        let userId = try await client.auth.user().id
+        let userId = try await currentUserID()
         struct Insert: Encodable {
             let owner_id: UUID
             let person_id: UUID
@@ -480,7 +493,7 @@ final class LiveHiyaRepository: HiyaRepository {
     }
 
     func addPersonNote(personId: UUID, body: String) async throws -> PersonNote {
-        let userId = try await client.auth.user().id
+        let userId = try await currentUserID()
         struct Insert: Encodable {
             let owner_id: UUID
             let person_id: UUID
@@ -634,7 +647,7 @@ final class LiveHiyaRepository: HiyaRepository {
     }
 
     func startChallenge(_ draft: ChallengeDraft) async throws -> Challenge {
-        let userId = try await client.auth.user().id
+        let userId = try await currentUserID()
         struct Insert: Encodable {
             let owner_id: UUID
             let title: String
@@ -683,7 +696,24 @@ final class LiveHiyaRepository: HiyaRepository {
 
 extension SupabaseClient {
     static let hiya: SupabaseClient = {
-        SupabaseClient(supabaseURL: SupabaseConfig.url, supabaseKey: SupabaseConfig.anonKey)
+        SupabaseClient(
+            supabaseURL: SupabaseConfig.url,
+            supabaseKey: SupabaseConfig.anonKey,
+            options: SupabaseClientOptions(
+                auth: SupabaseClientOptions.AuthOptions(
+                    // Keep the access token fresh in the background so requests
+                    // don't trigger a blocking, on-demand refresh.
+                    autoRefreshToken: true,
+                    // Adopt the fixed behavior NOW (default is the legacy `false`,
+                    // which is what logs the "Initial session emitted after
+                    // attempting to refresh the local stored session" warning).
+                    // With `true`, the SDK emits the stored session immediately
+                    // instead of doing a refresh round-trip on launch — that
+                    // refresh was hanging the main thread 1–2s.
+                    emitLocalSessionAsInitialSession: true
+                )
+            )
+        )
     }()
 }
 

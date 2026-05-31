@@ -26,6 +26,16 @@ final class SoundEngine {
     static let enabledDefaultsKey = "hiya.sounds.enabled"
 
     private var players: [SoundEffect: AVAudioPlayer] = [:]
+    /// Retain the WAV bytes behind every player for the engine's lifetime.
+    /// `AVAudioPlayer(data:)` does NOT copy its data — it reads from that buffer
+    /// on demand — so once the source `Data` (a loop local in `start()`) was
+    /// freed, each player held a dangling pointer into freed memory. That is an
+    /// intermittent heap corruption: usually the freed bytes are still intact, so
+    /// it "works for a while," then the memory is reused and it detonates far
+    /// away (it was crashing a SwiftUI `Text` render). Holding the data here —
+    /// on the long-lived singleton — keeps it alive as long as the players are.
+    private var effectData: [SoundEffect: Data] = [:]
+    private var ambientData: Data?
     /// Separate looping player for the ambient bed (loading splash, etc.).
     /// Lives outside the `players` dict because it's controlled by
     /// `startAmbience`/`stopAmbience`, not the one-shot `play(_:)` path.
@@ -72,6 +82,7 @@ final class SoundEngine {
             player.volume = 1.0
             player.prepareToPlay()
             players[effect] = player
+            effectData[effect] = data   // keep the WAV alive for the player
         }
 
         // Ambient bed: pre-rendered as a 5 s loop, infinite repeat, starts
@@ -83,6 +94,7 @@ final class SoundEngine {
             player.volume = 0
             player.prepareToPlay()
             ambientPlayer = player
+            ambientData = data   // keep the WAV alive for the player
         }
     }
 

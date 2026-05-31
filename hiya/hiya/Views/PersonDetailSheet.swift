@@ -76,16 +76,16 @@ struct PersonDetailSheet: View {
         }
         .preferredColorScheme(.dark)
         .task { await vm.load() }
+        // load() runs once, in onDismiss — running it in onSaved too fired a second
+        // copy concurrently (parallel off-main Supabase calls → heap corruption).
         .sheet(isPresented: $loggingPast, onDismiss: { Task { await vm.load() } }) {
             LogSheetView(repo: repo, preselectedPerson: person) { ok, err in
-                if ok { await vm.load() }
-                else { vm.errorMessage = err ?? "Couldn't save" }
+                if !ok { vm.errorMessage = err ?? "Couldn't save" }
             }
         }
         .sheet(item: $editingInteraction, onDismiss: { Task { await vm.load() } }) { entry in
             LogSheetView(repo: repo, editing: entry) { ok, err in
-                if ok { await vm.load() }
-                else { vm.errorMessage = err ?? "Couldn't save" }
+                if !ok { vm.errorMessage = err ?? "Couldn't save" }
             }
         }
         .alert("Edit note", isPresented: Binding(
