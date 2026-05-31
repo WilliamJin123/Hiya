@@ -6,7 +6,6 @@ struct HomeView: View {
     @State private var challengesVM: ChallengesViewModel
     @State private var sheetMode: LogSheetMode?
     @State private var showingSettings = false
-    @State private var toast: ToastItem?
     @AppStorage("hiya.selectedMode") private var mode: PersonStatus = .cold
     @AppStorage(HardMode.defaultsKey) private var hardMode = false
     @Environment(NotificationManager.self) private var notifications
@@ -38,7 +37,6 @@ struct HomeView: View {
                         SoundEngine.shared.play(.modeSwitch)
                     }
                 }
-                ToastOverlay(item: $toast)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -75,28 +73,21 @@ struct HomeView: View {
                 SoundEngine.shared.play(.achievement)
             }
             .sheet(item: $sheetMode, onDismiss: { Task { await vm.refresh(); await challengesVM.load(); await syncReminders() } }) { sheet in
-                // `onSaved` fires AFTER the background save settles — on success
-                // we refresh + show a "Saved/Updated" toast; on failure we surface
-                // the reason. `onDismiss` above still covers the cancel path (and
-                // harmlessly shows stale data on save until this callback lands).
+                // No success toast — the new log appearing in the list is feedback
+                // enough, and the toast's transition crashed the post-save render
+                // (EXC_BAD_ACCESS in swift_unknownObjectRetain while resolving its
+                // Text). A failed save still surfaces via the "Something went wrong"
+                // alert below — a system alert, not the custom overlay that crashed.
                 switch sheet {
                 case .create(let p, let mode):
                     LogSheetView(repo: repo, preselectedPerson: p, creationMode: mode) { ok, err in
-                        if ok {
-                            await vm.refresh(); await challengesVM.load(); await syncReminders()
-                            toast = .success("Saved")
-                        } else {
-                            toast = .failure(err ?? "Couldn't save")
-                        }
+                        if ok { await vm.refresh(); await challengesVM.load(); await syncReminders() }
+                        else { vm.errorMessage = err ?? "Couldn't save" }
                     }
                 case .edit(let entry):
                     LogSheetView(repo: repo, editing: entry) { ok, err in
-                        if ok {
-                            await vm.refresh(); await challengesVM.load(); await syncReminders()
-                            toast = .success("Updated")
-                        } else {
-                            toast = .failure(err ?? "Couldn't save")
-                        }
+                        if ok { await vm.refresh(); await challengesVM.load(); await syncReminders() }
+                        else { vm.errorMessage = err ?? "Couldn't save" }
                     }
                 }
             }

@@ -2,10 +2,9 @@ import SwiftUI
 
 struct LogSheetView: View {
     let repo: HiyaRepository
-    /// Called once the (background) save settles. `success` tells the parent
-    /// whether to refresh + show a success toast, or surface the error string
-    /// in a failure toast — the sheet itself is already dismissed, so this is
-    /// the only place those signals can land.
+    /// Called once the (background) save settles. `success` lets the parent
+    /// refresh on success, or surface the error string on failure — the sheet
+    /// itself is already dismissed, so this is the only place those signals land.
     var onSaved: (_ success: Bool, _ errorMessage: String?) async -> Void = { _, _ in }
     @State private var vm: LogSheetViewModel
     @State private var showingDeleteConfirm = false

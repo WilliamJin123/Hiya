@@ -13,7 +13,6 @@ struct PersonDetailSheet: View {
     @State private var editingInteraction: LoggedConversation?
     @State private var renaming = false
     @State private var renameDraft = ""
-    @State private var toast: ToastItem?
     @Environment(\.dismiss) private var dismiss
 
     init(repo: HiyaRepository, person: Person) {
@@ -48,7 +47,6 @@ struct PersonDetailSheet: View {
                     .padding(Theme.Spacing.md)
                 }
                 WorkingOverlay(isWorking: vm.isWorking || isMoving)
-                ToastOverlay(item: $toast)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -80,22 +78,14 @@ struct PersonDetailSheet: View {
         .task { await vm.load() }
         .sheet(isPresented: $loggingPast, onDismiss: { Task { await vm.load() } }) {
             LogSheetView(repo: repo, preselectedPerson: person) { ok, err in
-                if ok {
-                    await vm.load()
-                    toast = .success("Saved")
-                } else {
-                    toast = .failure(err ?? "Couldn't save")
-                }
+                if ok { await vm.load() }
+                else { vm.errorMessage = err ?? "Couldn't save" }
             }
         }
         .sheet(item: $editingInteraction, onDismiss: { Task { await vm.load() } }) { entry in
             LogSheetView(repo: repo, editing: entry) { ok, err in
-                if ok {
-                    await vm.load()
-                    toast = .success("Updated")
-                } else {
-                    toast = .failure(err ?? "Couldn't save")
-                }
+                if ok { await vm.load() }
+                else { vm.errorMessage = err ?? "Couldn't save" }
             }
         }
         .alert("Edit note", isPresented: Binding(

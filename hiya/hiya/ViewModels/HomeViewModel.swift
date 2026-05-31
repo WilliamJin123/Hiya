@@ -81,7 +81,26 @@ final class HomeViewModel {
         self.repo = repo
     }
 
+    // Re-entrancy guard. A save fires `refresh()` from the sheet's `onSaved`
+    // AND the sheet's `onDismiss`, so two used to run at once — doubling the
+    // network calls, the @MainActor state churn, and even the goal-reached
+    // chime (each pass could detect the same in-progress→at-goal transition).
+    // Now an overlapping call just asks the in-flight pass to run once more,
+    // so the freshest data still lands without any concurrency.
+    private var isRefreshing = false
+    private var refreshAgain = false
+
     func refresh() async {
+        if isRefreshing { refreshAgain = true; return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        repeat {
+            refreshAgain = false
+            await performRefresh()
+        } while refreshAgain
+    }
+
+    private func performRefresh() async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }

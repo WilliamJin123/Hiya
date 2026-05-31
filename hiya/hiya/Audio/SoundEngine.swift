@@ -64,10 +64,12 @@ final class SoundEngine {
                   let player = try? AVAudioPlayer(data: data) else {
                 continue
             }
-            // Near full volume — synthesized samples are tanh-clipped to
-            // [-1, 1] and the per-tone amplitudes are conservative, so this
-            // headroom goes to making the effects clearly audible on speaker.
-            player.volume = 1.75
+            // Max valid gain. `AVAudioPlayer.volume` is defined only for 0...1,
+            // so the previous 1.75 was out of range — the framework clamps it to
+            // 1.0 anyway, so it bought no extra loudness while risking undefined
+            // behavior. For more level, raise the per-tone amplitudes in
+            // `SoundEffect`, not this.
+            player.volume = 1.0
             player.prepareToPlay()
             players[effect] = player
         }

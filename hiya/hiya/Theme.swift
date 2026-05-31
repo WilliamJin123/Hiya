@@ -52,10 +52,11 @@ enum Theme {
     static let coldAccent = accentLavender
     static let warmAccent = accentAmber
 
-    /// Deeper, more saturated lavender for the "pure cold" sub-goal (hard mode).
-    /// Reads as cold *intensified* — same family as `coldAccent`, pushed harder —
-    /// so the inner Approaches ring looks like a tougher tier, not a new mode.
-    static let pureColdAccent = Color(red: 149/255, green: 122/255, blue: 224/255)
+    /// Deeper, jewel-toned violet for the "pure cold" sub-goal (hard mode).
+    /// Same family as `coldAccent`, pushed cooler and richer — the inner
+    /// Approaches ring blends out of the lavender into this, so it reads as a
+    /// tougher tier of the same ring rather than a separate gauge.
+    static let pureColdAccent = Color(red: 143/255, green: 126/255, blue: 234/255)
 
     static func accent(for status: PersonStatus) -> Color {
         status == .cold ? coldAccent : warmAccent

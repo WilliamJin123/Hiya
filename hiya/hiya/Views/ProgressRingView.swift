@@ -31,14 +31,23 @@ struct ProgressRingView: View {
                 .animation(.easeOut(duration: 0.4), value: fillAmount)
 
             if let inner = innerRing {
-                Circle()
-                    .stroke(Theme.ringTrack, lineWidth: 8)
-                    .padding(26)
+                // No separate dark track, a thinner stroke, and a gradient that
+                // starts in the outer ring's accent (lavender) before deepening
+                // into the pure-cold violet — so the inner arc reads as a
+                // tougher tier of the same ring, nested just inside it, rather
+                // than a distinct second gauge. Slightly translucent to blend.
                 Circle()
                     .trim(from: 0, to: inner.progress)
-                    .stroke(inner.accent, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .stroke(
+                        LinearGradient(
+                            colors: [accent, inner.accent],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: 7, lineCap: .round)
+                    )
                     .rotationEffect(.degrees(-90))
-                    .padding(26)
+                    .opacity(0.9)
+                    .padding(15)
                     .animation(.easeOut(duration: 0.4), value: inner.progress)
             }
 
